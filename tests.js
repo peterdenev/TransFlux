@@ -1,5 +1,6 @@
 
 function startUp(){
+
 	var obj_data_1 = {
         name: 'mike',
         info: {
@@ -20,60 +21,67 @@ function startUp(){
                 name: 'Poll',
                 lang: ['cake', 'php', 'js']
             }
-        ],
-        addProjectGetSet: function(proj){
+        ],          
+    }
+
+    var obj_funcs_1 = {
+    	addProjectGetSet: function(proj){
         	//debugger;
-        	var projects = this.get('projects');
-        	projects.push(proj);
-        	this.set('projects',projects);
+        	var projs = this.get('projects');
+        	projs.push(proj);
+        	this.set('projects',projs);
         	this.emitCommit();        	
         },
         addProjectUse: function(proj){
-        	this.use('projects',function(projects){
-        		projects.push(proj);
-        		return projects;
+        	this.use('projects',function(projs){
+        		projs.push(proj);
+        		return projs;
         	})
-        	his.emitCommit();
+        	this.emitCommit();
+        },
+        addProjectSetChanged: function(proj){
+        	var projs = this.get('projects');
+        	projs.push(proj);
+        	this.setChanged('projects');
+        	this.emitCommit(); 
         },
         addProjectChain: function(proj){
         	this.addProjectGetSet(data);
         },
         addProjectRollback: function(proj){
-        	var projects = this.get('projects');
-        	projects.push(proj);
-        	this.set('projects',projects);
+        	var projs = this.get('projects');
+        	projs.push(proj);
+        	this.set('projects',projs);
         	this.emitRollback(); 
         },
-
-        actionsMap: {
-        	addProject_get_set: 'addProjectGetSet',
-        	addProject_use: 'addProjectUse',
-        	addProject_chain: 'addProjectChain',
-        	addProject_rollback: 'addProjectRollback',
-        }
     }
+
+    var obj_map_1 = {
+    	actionsMap : {
+	    	addProject_get_set: 'addProjectGetSet',
+	    	addProject_use: 'addProjectUse',
+	    	addProject_setChanged: 'addProjectSetChanged',
+	    	addProject_chain: 'addProjectChain',
+	    	addProject_rollback: 'addProjectRollback',
+	    }
+	}
 
 
 	return {
+		obj_1: $.extend({},obj_data_1,obj_funcs_1,obj_map_1),
 		obj_data_1: obj_data_1,
-		//mikeStore: mikeStore
+		obj_funcs_1: obj_funcs_1,
+		obj_map_1: obj_map_1,
+	
 	}
 
 }
 
-function removeFuncs(obj){
-	for(var i in obj){
-		if(typeof obj[i] == 'function'){
-			delete obj[i];
-		}
-	}
-	return obj;
-}
 
 QUnit.test( "STORE init", function( assert ) {
 	var init = startUp();	
 
-  	var mikeStore = StoreCreator('Mike.',init.obj_data_1);
+  	var mikeStore = StoreCreator('Mike.',init.obj_1);
 
   	assert.ok(typeof mikeStore == 'object','Store is an object')
   	//assert.ok(mikeStore,'Store is instqance of Store')
@@ -82,25 +90,32 @@ QUnit.test( "STORE init", function( assert ) {
   	//assert.equal(mikeStore.getState(), removeFuncs($.extend(true,{},init.obj_data_1)), 'State is equal to all non func data from store');
   	assert.deepEqual(
   		mikeStore.getState(), 
-  		removeFuncs($.extend(true,{_stateVersion:0},init.obj_data_1)), 
+  		$.extend(true,{_stateVersion:0},init.obj_data_1,init.obj_map_1), 
   		'State is deep equal to all non func data from store + the version num'
   	);
 
 })
 
 
-QUnit.test('Store modifications',function(assert){
-	assert.expect( 2);
-	var done1 = assert.async()
-	var done2 = assert.async()
+QUnit.test('Store modifications',function(assert){	
+
+	var asynchCount = 5;
+	//prepare async
+	var dones = [];	
+	assert.expect(asynchCount);
+	for(var d=1; d<=asynchCount; d++){
+		dones[d] = assert.async()
+	}
+
 
 	var init = startUp();
 	//debugger;
-  	var mikeStore = StoreCreator('Mike2.',init.obj_data_1);
+  	var mikeStore = StoreCreator('Mike2.',init.obj_1);
  	
     FunFire.once('Mike2.updated',function(event){    	
 	  	assert.deepEqual(
 	  		mikeStore.getState(),
+	  		$.extend(
 	  		{
 	  			_stateVersion: 1,
 	  			name: 'mike',
@@ -126,17 +141,11 @@ QUnit.test('Store modifications',function(assert){
 			            name: 'TransFlux',
 			            lang: ['js']
 			        }
-		        ],
-		        actionsMap: {
-		        	addProject_get_set: 'addProjectGetSet',
-		        	addProject_use: 'addProjectUse',
-		        	addProject_chain: 'addProjectChain',
-		        	addProject_rollback: 'addProjectRollback',
-		        }
-		    },
+		        ],		        
+		    },init.obj_map_1),
 		    'addProject with Get and Set - commit'
 	  	)
-	  	done1()
+	  	dones[1]()
 	},window)
 
 	//debugger;
@@ -150,6 +159,7 @@ QUnit.test('Store modifications',function(assert){
     FunFire.once('Mike2.updated',function(event){    	
 	  	assert.deepEqual(
 	  		mikeStore.getState(),
+	  		$.extend(
 	  		{
 	  			_stateVersion: 2,
 	  			name: 'mike',
@@ -179,17 +189,11 @@ QUnit.test('Store modifications',function(assert){
 			        	name: 'SuperCoolProj',
             			lang: ['brainfuck']
 			        }
-		        ],
-		        actionsMap: {
-		        	addProject_get_set: 'addProjectGetSet',
-		        	addProject_use: 'addProjectUse',
-		        	addProject_chain: 'addProjectChain',
-		        	addProject_rollback: 'addProjectRollback',
-		        }
-		    },
+		        ]		       
+		    },init.obj_map_1),
 		    'addProject with Get and Set again to version 2'
 	  	)
-	  	done2()
+	  	dones[2]()
 	},window)
 
 	//debugger;
@@ -197,6 +201,65 @@ QUnit.test('Store modifications',function(assert){
             name: 'SuperCoolProj',
             lang: ['brainfuck']
     })
+
+
+    //test 3
+
+    FunFire.once('Mike2.updated',function(event){    	
+	  	assert.deepEqual(
+	  		mikeStore.getState(),
+	  		$.extend(
+	  		{
+	  			_stateVersion: 3,
+	  			name: 'mike',
+		        info: {
+		            age: 27,
+		            month: 'january',
+		            address: {
+		                city: 'Varna',
+		                street: 'slivnica',
+		                number: 1
+		            }
+		        },
+		        projects: [
+		            {   
+		                name: 'DataFlow',
+		                lang: ['php','js']
+		            },
+		            {
+		                name: 'Poll',
+		                lang: ['cake', 'php', 'js']
+		            },
+		            {   
+			            name: 'TransFlux',
+			            lang: ['js']
+			        },
+			        {
+			        	name: 'SuperCoolProj',
+            			lang: ['brainfuck']
+			        },
+			        {
+			        	name: 'Nacepin',
+            			lang: ['none']
+			        }
+		        ]		       
+		    },init.obj_map_1),
+		    'addProject with "use"'
+	  	)
+	  	dones[3]()
+	},window)
+
+	//debugger;
+	FunFire.emit('Mike2.addProject_use',window,{   
+            name: 'Nacepin',
+            lang: ['none']
+    })
+
+    assert.equal(
+    	mikeStore.getState()._stateVersion,
+    	2,
+    	'an action was called but the last Stable state must be with old data/version'
+    )
 
 
 });

@@ -25,9 +25,13 @@ var TransactStore = function(store_prefix, model_data, funcs) {
     },
 
     //experimental (not tested)
-    this.setChanged = function(key_path){
-        if(ObjectHelper.checkNested(model_data,key_path)){  
-            _changes[key_path] = ObjectHelper.getNested(model_data,key_path)                          
+    this.setChanged = function(key_path){        
+        if(ObjectHelper.checkNested(model_data,key_path)){
+            var updated_obj = ObjectHelper.getNested(model_data,key_path);
+            if(typeof updated_obj != 'object'){
+                console.warn('TransFlux', 'Use setChanged only for array or object, or use "set" insted!')
+            }
+            _changes[key_path] = updated_obj;                     
         }else{
             console.warn('TransFlux', 'Someone try to setChange to not existing key path!',key_path)
         }  
@@ -63,22 +67,22 @@ var StateManager = function(store_prefix, onlyData){
     }
 
     //readonly last state export 
-    var _lastStabileState = null;
-    var _lastStabileState_readOnly = null; 
+    var _lastStableState = null;
+    var _lastStableState_readOnly = null; 
     
 
     var getReadOnlyState = function(){        
-        return _lastStabileState_readOnly;
+        return _lastStableState_readOnly;
     }
 
-    var getLastStabileState = function(){
-        return $.extend(true,{},_lastStabileState); // copy the snapshot to prevent edit local var (multi call same var)
-        //return _lastStabileState;
+    var getLastStableState = function(){
+        return $.extend(true,{},_lastStableState); // copy the snapshot to prevent edit local var (multi call same var)
+        //return _lastStableState;
     }
     var _makeState = function(){
         _data._stateVersion++;
-        _lastStabileState = $.extend(true,{},_data); //snapshot of current data
-        _lastStabileState_readOnly = ObjectHelper.deepFreeze($.extend(true,{},_data));
+        _lastStableState = $.extend(true,{},_data); //snapshot of current data
+        _lastStableState_readOnly = ObjectHelper.deepFreeze($.extend(true,{},_data));
     }
 
     //FUTURE: in queue
@@ -99,7 +103,7 @@ var StateManager = function(store_prefix, onlyData){
 
     return {
         getReadOnlyState : getReadOnlyState,
-        getLastStabileState : getLastStabileState,
+        getLastStableState : getLastStableState,
         getLastVersionNum: getLastVersionNum,
 
     }
@@ -163,13 +167,13 @@ var StoreCreator = function(store_prefix, data_object){
     function _execTransact(func_name, args){
         //hint may need to be in custom namespace with params //FIXME
         //begin new trnsaction
-        //make an instance with last stabile data and all functions       
-        var transactState = new TransactStore(store_prefix, stateMngr.getLastStabileState(), splitData.funcs);        
+        //make an instance with last stable data and all functions       
+        var transactState = new TransactStore(store_prefix, stateMngr.getLastStableState(), splitData.funcs);        
         try{
             transactState[func_name].apply(transactState,[args]);
         }catch(err){
-            console.error('TransFlux','Action exception for event "'+event_name+'"',err);
-            transactState.rollback(err);
+            console.error('TransFlux','Action exception in function "'+func_name+'"',err);
+            transactState.emitRollback(err);
         } 
     }
 
