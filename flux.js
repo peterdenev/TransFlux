@@ -11,23 +11,27 @@ var TransactStore = function(store_prefix, model_data, funcs) {
 
     this.set = function(key_path, value){
         //debugger;
-        if(this.get(key_path)!==value){
-            if(ObjectHelper.checkNested(model_data,key_path,value)){
-                var old_data = ObjectHelper.getNested(model_data,key_path,value)
+        //if(this.get(key_path)!==value){ // ref objects will be the same as new value, so always update
+            if(ObjectHelper.checkNested(model_data,key_path)){               
                 if(ObjectHelper.setNested(model_data,key_path,value)){
-                    _changes[key_path] = {
-                        old: old_data, // may be not reliable
-                        new: value,
-                        key_path: key_path
-                    }
+                    _changes[key_path] = value
                 }else{
                     console.warn('TransFlux', 'Failed to set a value to key path',[key_path, value])
                 }
             }else{
                 console.warn('TransFlux', 'Someone try to set a value to not existing key path!',[key_path, value])
             }               
-        }
+        //}
     },
+
+    //experimental (not tested)
+    this.setChanged = function(key_path){
+        if(ObjectHelper.checkNested(model_data,key_path)){  
+            _changes[key_path] = ObjectHelper.getNested(model_data,key_path)                          
+        }else{
+            console.warn('TransFlux', 'Someone try to setChange to not existing key path!',key_path)
+        }  
+    }
 
     //experimental (not tested)
     this.use = function(key_path, func){
@@ -51,8 +55,8 @@ var TransactStore = function(store_prefix, model_data, funcs) {
 
 // state manager
 var StateManager = function(store_prefix, onlyData){
-    var _data = $.extend({},onlyData);
-    _data._stateVersion = 0; 
+    var _data = $.extend(true,{},onlyData);
+    _data._stateVersion = -1; 
 
     var getLastVersionNum = function(){
         return _data._stateVersion;
@@ -72,9 +76,9 @@ var StateManager = function(store_prefix, onlyData){
         //return _lastStabileState;
     }
     var _makeState = function(){
-        this._stateVersion++;
-        _lastStabileState = $.extend(true,{},this._data); //snapshot of current data
-        _lastStabileState_readOnly = ObjectHelper.deepFreeze($.extend(true,{},this._data));
+        _data._stateVersion++;
+        _lastStabileState = $.extend(true,{},_data); //snapshot of current data
+        _lastStabileState_readOnly = ObjectHelper.deepFreeze($.extend(true,{},_data));
     }
 
     //FUTURE: in queue
@@ -117,7 +121,8 @@ function extractFuncAndData(obj){
     return result;
 }
 
-var StoreCreator = function(store_prefix, data_object){    
+var StoreCreator = function(store_prefix, data_object){   
+    //debugger; 
     var _locked = false;
     var _execQueue = [];
 
@@ -128,7 +133,7 @@ var StoreCreator = function(store_prefix, data_object){
 
     //add to quese
     function _mapOn(event_name, func_name){       
-        FunFire.on(event_name,function(event){                
+        FunFire.on(event_name,function(event){                          
             _execQueue.push({
                 func_name: func_name,
                 args: event.FunFire.data,
@@ -157,12 +162,11 @@ var StoreCreator = function(store_prefix, data_object){
 
     function _execTransact(func_name, args){
         //hint may need to be in custom namespace with params //FIXME
-         //begin new trnsaction
-        //make an instance with last stabile data and all functions
-        //var transData = $.extend(true,{}, stateMngr.getLastStabileState(), splitData.funcs) 
+        //begin new trnsaction
+        //make an instance with last stabile data and all functions       
         var transactState = new TransactStore(store_prefix, stateMngr.getLastStabileState(), splitData.funcs);        
         try{
-            transactState[func_name].apply(transactState,args);
+            transactState[func_name].apply(transactState,[args]);
         }catch(err){
             console.error('TransFlux','Action exception for event "'+event_name+'"',err);
             transactState.rollback(err);
@@ -173,24 +177,23 @@ var StoreCreator = function(store_prefix, data_object){
     FunFire.on(store_prefix+'rollback', _enqueue, window);
 
     //subscribe store actions (wait for transaction trigger)
-    if(data_object.hasOwnProperty('actions')){
-        for(var event_name in data_object.actions){
-            var func_name = data_object.actions[event_name];
-            if(data_object.hasOwnProperty(func_name)){                
+    if(splitData.data.hasOwnProperty('actionsMap')){
+        for(var event_name in splitData.data.actionsMap){
+            var func_name = splitData.data.actionsMap[event_name];
+            if(splitData.funcs.hasOwnProperty(func_name)){                
                 _mapOn(store_prefix+event_name,func_name);
+            }else{
+                console.warn('TransFlux', 'Action method "'+func_name+'" not found for store "'+store_prefix+'"')
             }  
         }
+    }else{
+        console.warn('TransFlux','No actionsMap for store with prefix "'+store_prefix+'"')
     }  
    
     //listen for ons and other settings
 
     return {
         getState: stateMngr.getReadOnlyState,
-        getLastVersionNum: getLastVersionNum,
+        getLastVersionNum: stateMngr.getLastVersionNum,
     };
 }
-
-
-
-
-

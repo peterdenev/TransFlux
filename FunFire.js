@@ -26,9 +26,12 @@
         }
     };
 
-    var saveHandlers = function(evName, cb, el){
+    var saveHandlers = function(evName, cb, el){       
         if(!el.hasOwnProperty(FF)) 
-            el[FF] = { _listeners : {} };        
+            el[FF] = {};
+        if(!el[FF].hasOwnProperty(_l)){
+            el[FF][_l] = {}
+        }        
         if(!el[FF][_l].hasOwnProperty[evName]) 
             el[FF][_l][evName] = [];        
         el[FF][_l][evName].push(cb);
