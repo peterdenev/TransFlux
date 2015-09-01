@@ -10,6 +10,14 @@
   <div id="qunit-fixture"></div>
   <script src="jquery-1.11.3.min.js"></script>
   <script src="qunit-1.18.0.js"></script>
+  <script>
+  //fake AMD
+  function define(name, deps, cb){
+  	window[name] = cb();
+  }
+  </script>
+  <script src="FunFire.js"></script>
+  <script src="ObjectHelper.js"></script>
   <script src="flux.js"></script>
   <script src="tests.js"></script>
 </body>

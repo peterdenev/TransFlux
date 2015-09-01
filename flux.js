@@ -1,55 +1,64 @@
-var TransactStore = function(store_prefix, data_object) {
-    for(var i in data_object){
-        this[i] = data_object[i]; // or copy? or deep?
+var TransactStore = function(store_prefix, model_data, funcs) {
+    for(var i in funcs){
+        this[i] = funcs[i]; 
     }
 
-    var __changes = {};
+    var _changes = {};
 
-
-}
- 
-TransactStore.prototype = {
- 
-    hydrate: function() {
-        var memento = JSON.stringify(this);
-        return memento;
-    },
- 
-    dehydrate: function(memento) {
-        var m = JSON.parse(memento);
-        for(var i in m){
-            this[i] = m[i]; // or copy? or deep?
-        }      
-    },
-
-    //only state must have this
-    getState: function(){
-        return JSON.parse(JSON.stringify(this))
-        //return this; // FIXME
-    },
-
-    commit: function(){
-
-    },
-
-    rollback: function(reason){
-
+    this.get = function(key_path){
+        return ObjectHelper.getNested(model_data,key_path);
     }
 
+    this.set = function(key_path, value){
+        //debugger;
+        if(this.get(key_path)!==value){
+            if(ObjectHelper.checkNested(model_data,key_path,value)){
+                var old_data = ObjectHelper.getNested(model_data,key_path,value)
+                if(ObjectHelper.setNested(model_data,key_path,value)){
+                    _changes[key_path] = {
+                        old: old_data, // may be not reliable
+                        new: value,
+                        key_path: key_path
+                    }
+                }else{
+                    console.warn('TransFlux', 'Failed to set a value to key path',[key_path, value])
+                }
+            }else{
+                console.warn('TransFlux', 'Someone try to set a value to not existing key path!',[key_path, value])
+            }               
+        }
+    },
+
+    //experimental (not tested)
+    this.use = function(key_path, func){
+        this.set(key_path, func.apply(this,[this.get(key_path)]) )
+    }
+
+    this.emit = function(event_name, data, callback){
+        return FunFire.emit(store_prefix+event_name,window,data,callback);
+    }
+
+    this.emitCommit = function(){
+        this.emit('commit', {changes: _changes})
+        //self._changes = {};
+    }       
+    this.emitRollback = function(reason){       
+        this.emit('rollback', {/*changes: _changes,*/ reason: reason})
+        //self._changes = {};
+    }   
 }
+
 
 // state manager
 var StateManager = function(store_prefix, onlyData){
-    var data = $.extend({},onlyData);
-    data._stateVersion = 0; 
+    var _data = $.extend({},onlyData);
+    _data._stateVersion = 0; 
 
     var getLastVersionNum = function(){
-        return data._stateVersion;
+        return _data._stateVersion;
     }
 
-    //var _locked = false;
-
-     //readonly last state export 
+    //readonly last state export 
     var _lastStabileState = null;
     var _lastStabileState_readOnly = null; 
     
@@ -59,22 +68,26 @@ var StateManager = function(store_prefix, onlyData){
     }
 
     var getLastStabileState = function(){
-        //return $.extend(true,{},_lastStabileState); // copy the snapshot to prevent edit local var (multi call same var)
-        return _lastStabileState;
+        return $.extend(true,{},_lastStabileState); // copy the snapshot to prevent edit local var (multi call same var)
+        //return _lastStabileState;
     }
     var _makeState = function(){
         this._stateVersion++;
-        _lastStabileState = $.extend(true,{},this.data); //snapshot of current data
-        _lastStabileState_readOnly = ObjectHelper.deepFreeze($.extend(true,{},this.data));
+        _lastStabileState = $.extend(true,{},this._data); //snapshot of current data
+        _lastStabileState_readOnly = ObjectHelper.deepFreeze($.extend(true,{},this._data));
     }
 
     //FUTURE: in queue
     FunFire.on(store_prefix+'commit',function(event){
-        //TODO: set changes to this
-
-        //
+        var changes = event.FunFire.data.changes
+        //set changes to this
+        for(var key_path in changes){
+            ObjectHelper.setNested(_data, key_path, changes[key_path])//is it enought or it is a ref?                             
+        }       
         //remake states
-        _makeState()
+        _makeState();
+        //notify others for finished update (for unlock and enqueue)
+        FunFire.emit(store_prefix+'updated', window, {state: getReadOnlyState(), changes: changes});    
     },window)
 
     //init load
@@ -87,15 +100,6 @@ var StateManager = function(store_prefix, onlyData){
 
     }
 
-}
-
-
-function injectData(data){
-    var m = JSON.parse(JSON.stringify(data))
-    for(var i in m){
-        this[i] = m[i]; // or copy? or deep?
-    }    
-    return this;
 }
 
 function extractFuncAndData(obj){
@@ -120,9 +124,7 @@ var StoreCreator = function(store_prefix, data_object){
     var splitData = extractFuncAndData(data_object);
 
     //statemanager
-    var stateMngr = StateManager(store_prefix, splitData.data);    
-    //TODO: subscribe lastState to commit/rollback of transact instances
-
+    var stateMngr = StateManager(store_prefix, splitData.data);   
 
     //add to quese
     function _mapOn(event_name, func_name){       
@@ -157,15 +159,18 @@ var StoreCreator = function(store_prefix, data_object){
         //hint may need to be in custom namespace with params //FIXME
          //begin new trnsaction
         //make an instance with last stabile data and all functions
-        var transData = $.extend(true,{}, stateMngr.getLastStabileState(), splitData.funcs) 
-        var transactState = new TransactStore(store_prefix, transData);        
+        //var transData = $.extend(true,{}, stateMngr.getLastStabileState(), splitData.funcs) 
+        var transactState = new TransactStore(store_prefix, stateMngr.getLastStabileState(), splitData.funcs);        
         try{
             transactState[func_name].apply(transactState,args);
         }catch(err){
-            console.error('FunFlux','Action exception for event "'+event_name+'"',err);
+            console.error('TransFlux','Action exception for event "'+event_name+'"',err);
             transactState.rollback(err);
         } 
     }
+
+    FunFire.on(store_prefix+'updated', _enqueue, window);
+    FunFire.on(store_prefix+'rollback', _enqueue, window);
 
     //subscribe store actions (wait for transaction trigger)
     if(data_object.hasOwnProperty('actions')){
@@ -184,31 +189,6 @@ var StoreCreator = function(store_prefix, data_object){
         getLastVersionNum: getLastVersionNum,
     };
 }
-
-
- 
-var CareTaker = function() {
-    this.mementos = {};
- 
-    this.add = function(key, memento) {
-        this.mementos[key] = memento;
-    },
- 
-    this.get = function(key) {
-        return this.mementos[key];
-    }
-}
- 
-// log helper
-var log = (function () {
-    var log = "";
- 
-    return {
-        add: function (msg) { log += msg + "\n"; },
-        show: function () { alert(log); log = ""; }
-    }
-})();
- 
 
 
 
