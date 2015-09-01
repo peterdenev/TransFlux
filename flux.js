@@ -1,3 +1,8 @@
+
+if(!emitterImpl){
+    throw 'Need to set an eventemitter implementation for - emitterImpl'
+}
+
 var TransactStore = function(store_prefix, model_data, funcs) {
     for(var i in funcs){
         this[i] = funcs[i]; 
@@ -42,8 +47,8 @@ var TransactStore = function(store_prefix, model_data, funcs) {
         this.set(key_path, func.apply(this,[this.get(key_path)]) )
     }
 
-    this.emit = function(event_name, data, callback){
-        return FunFire.emit(store_prefix+event_name,window,data,callback);
+    this.emit = function(event_name, data){
+        return emitterImpl.emit(store_prefix+event_name, data);
     }
 
     this.emitCommit = function(){
@@ -86,8 +91,8 @@ var StateManager = function(store_prefix, onlyData){
     }
 
     //FUTURE: in queue
-    FunFire.on(store_prefix+'commit',function(event){
-        var changes = event.FunFire.data.changes
+    emitterImpl.on(store_prefix+'commit',function(data){
+        var changes = data.changes
         //set changes to this
         for(var key_path in changes){
             ObjectHelper.setNested(_data, key_path, changes[key_path])//is it enought or it is a ref?                             
@@ -95,7 +100,7 @@ var StateManager = function(store_prefix, onlyData){
         //remake states
         _makeState();
         //notify others for finished update (for unlock and enqueue)
-        FunFire.emit(store_prefix+'updated', window, {state: getReadOnlyState(), changes: changes});    
+        emitterImpl.emit(store_prefix+'updated', {state: getReadOnlyState(), changes: changes});    
     },window)
 
     //init load
@@ -137,10 +142,10 @@ var StoreCreator = function(store_prefix, data_object){
 
     //add to quese
     function _mapOn(event_name, func_name){       
-        FunFire.on(event_name,function(event){                          
+        emitterImpl.on(event_name,function(args){                          
             _execQueue.push({
                 func_name: func_name,
-                args: event.FunFire.data,
+                args: args,
                 event: {
                     name: event_name
                 }
@@ -177,8 +182,8 @@ var StoreCreator = function(store_prefix, data_object){
         } 
     }
 
-    FunFire.on(store_prefix+'updated', _enqueue, window);
-    FunFire.on(store_prefix+'rollback', _enqueue, window);
+    emitterImpl.on(store_prefix+'updated', _enqueue);
+    emitterImpl.on(store_prefix+'rollback', _enqueue);
 
     //subscribe store actions (wait for transaction trigger)
     if(splitData.data.hasOwnProperty('actionsMap')){

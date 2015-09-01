@@ -99,7 +99,7 @@ QUnit.test( "STORE init", function( assert ) {
 
 QUnit.test('Store modifications',function(assert){	
 
-	var asynchCount = 5;
+	var asynchCount = 3;
 	//prepare async
 	var dones = [];	
 	assert.expect(asynchCount);
@@ -112,7 +112,7 @@ QUnit.test('Store modifications',function(assert){
 	//debugger;
   	var mikeStore = StoreCreator('Mike2.',init.obj_1);
  	
-    FunFire.once('Mike2.updated',function(event){    	
+    emitterImpl.once('Mike2.updated',function(){    	
 	  	assert.deepEqual(
 	  		mikeStore.getState(),
 	  		$.extend(
@@ -146,17 +146,17 @@ QUnit.test('Store modifications',function(assert){
 		    'addProject with Get and Set - commit'
 	  	)
 	  	dones[1]()
-	},window)
+	})
 
 	//debugger;
-	FunFire.emit('Mike2.addProject_get_set',window,{   
+	emitterImpl.emit('Mike2.addProject_get_set',{   
             name: 'TransFlux',
             lang: ['js']
     })
 
 	//test 2
 
-    FunFire.once('Mike2.updated',function(event){    	
+    emitterImpl.once('Mike2.updated',function(){    	
 	  	assert.deepEqual(
 	  		mikeStore.getState(),
 	  		$.extend(
@@ -194,10 +194,10 @@ QUnit.test('Store modifications',function(assert){
 		    'addProject with Get and Set again to version 2'
 	  	)
 	  	dones[2]()
-	},window)
+	})
 
 	//debugger;
-	FunFire.emit('Mike2.addProject_get_set',window,{   
+	emitterImpl.emit('Mike2.addProject_get_set',{   
             name: 'SuperCoolProj',
             lang: ['brainfuck']
     })
@@ -205,7 +205,7 @@ QUnit.test('Store modifications',function(assert){
 
     //test 3
 
-    FunFire.once('Mike2.updated',function(event){    	
+    emitterImpl.once('Mike2.updated',function(){    	
 	  	assert.deepEqual(
 	  		mikeStore.getState(),
 	  		$.extend(
@@ -247,19 +247,19 @@ QUnit.test('Store modifications',function(assert){
 		    'addProject with "use"'
 	  	)
 	  	dones[3]()
-	},window)
+	})
 
 	//debugger;
-	FunFire.emit('Mike2.addProject_use',window,{   
+	emitterImpl.emit('Mike2.addProject_use',{   
             name: 'Nacepin',
             lang: ['none']
     })
 
-    assert.equal(
+    /*assert.equal(
     	mikeStore.getState()._stateVersion,
     	2,
     	'an action was called but the last Stable state must be with old data/version'
-    )
+    )*/
 
 
 });
