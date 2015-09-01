@@ -3,6 +3,25 @@ if(!emitterImpl){
     throw 'Need to set an eventemitter implementation for - emitterImpl'
 }
 
+if(typeof emitterImpl.emitAsync != 'function'){
+    emitterImpl.emitGroupAsync = function(arr){
+        for(var i in arr){
+            setTimeout(function(){
+                emitterImpl.emit(arr[i][0], arr[i][1]);
+            },0)
+        }
+    }
+}
+
+if(typeof emitterImpl.emitToMany != 'function'){
+    emitterImpl.emitToMany = function(event_names, data){
+        console.log(event_names);
+        for(var i in event_names){           
+            emitterImpl.emit(event_names[i], data);           
+        }
+    }
+}
+
 var TransactStore = function(store_prefix, model_data, funcs, origin_event_name) {
     for(var i in funcs){
         this[i] = funcs[i]; 
@@ -47,22 +66,25 @@ var TransactStore = function(store_prefix, model_data, funcs, origin_event_name)
         this.set(key_path, func.apply(this,[this.get(key_path)]) )
     }
 
-    this.emit = function(event_name, data){
+    /*this.emit = function(event_name, data){
         return emitterImpl.emit(store_prefix+event_name, data);
-    }
+    }*/
 
     this.emitCommit = function(){
         var payload = {changes: _changes, origin_event_name: origin_event_name};
-        this.emit('commit', payload)
-        this.emit(origin_event_name+'.commit', payload)       
+        emitterImpl.emit(store_prefix+'commit', payload)
+        emitterImpl.emit(origin_event_name+'.commit', payload)       
         //self._changes = {};
     }       
     this.emitRollback = function(reason){      
         var payload = {/*changes: _changes,*/ reason: reason, origin_event_name: origin_event_name, status:'rollbacked'}
-        this.emit('rollbacked', payload)
-        this.emit(origin_event_name+'.rollbacked', payload)
-        this.emit(origin_event_name+'.done', payload)
-        this.emit('done', payload)
+        emitterImpl.emitToMany([            
+            store_prefix+'done',
+            store_prefix+'rollbacked',
+            origin_event_name+'.done',
+            origin_event_name+'.rollbacked',
+            store_prefix+'_readyForNext',
+        ],payload)
         //self._changes = {};
     }   
 }
@@ -106,16 +128,22 @@ var StateManager = function(store_prefix, onlyData){
         //remake states
         _makeState();
         //notify others for finished update (for unlock and enqueue)
-        var peyload = {
+        var payload = {
             state: getReadOnlyState(), 
             changes: data.changes, 
             status:'updated', 
             origin_event_name: data.origin_event_name
-        };        
-        emitterImpl.emit(store_prefix+'updated', peyload);  
-        emitterImpl.emit(store_prefix+data.origin_event_name+'.done', peyload) 
-        emitterImpl.emit(store_prefix+'done', peyload)  
-    },window)
+        }; 
+        emitterImpl.emitToMany([
+            //store_prefix+'_readyForNext',
+            store_prefix+'done',
+            store_prefix+'updated',
+            data.origin_event_name+'.done',
+            data.origin_event_name+'.updated',
+            store_prefix+'_readyForNext',
+        ],payload)
+        
+    })
 
     //init load
     _makeState()
@@ -165,22 +193,25 @@ var StoreCreator = function(store_prefix, data_object){
                     name: event_name
                 }
             })
-            _tryEnqueue();               
-        },window);        
+            _tryEnqueue();
+        });        
     }
 
-    function _tryEnqueue(force){            
+    function _tryEnqueue(force){   
+        console.log('try Enqueue');         
         if(!_locked || force){                
             _locked = true;
             if(_execQueue.length>0){
-                var job = _execQueue.shift();                
+                var job = _execQueue.shift(); 
+                console.log('Start job: ',job);               
                 _execTransact(job.func_name ,job.args, job.event.name);  
             }else{
                 _locked = false;
             }
         }
     }
-    function _enqueue(){        
+    function _enqueue(){     
+        console.log('_Enqueue');   
         _tryEnqueue(true);
     }
 
@@ -199,8 +230,8 @@ var StoreCreator = function(store_prefix, data_object){
 
     //emitterImpl.on(store_prefix+'updated', _enqueue);
     //emitterImpl.on(store_prefix+'rollbacked', _enqueue);
-    emitterImpl.on(store_prefix+'done', _enqueue);
-    /*emitterImpl.on(store_prefix+'done', function(){
+    emitterImpl.on(store_prefix+'_readyForNext', _enqueue);
+    /*emitterImpl.on(store_prefix+'_readyForNext', function(){
         setTimeout(_enqueue,0);
     });*/
 

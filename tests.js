@@ -122,7 +122,8 @@ QUnit.test('Store modifications',function(assert){
 	//debugger;
   	var mikeStore = StoreCreator('Mike2.',init.obj_1);
  	
-    emitterImpl.once('Mike2.updated',function(){    	
+    emitterImpl.once('Mike2.updated',function(){   
+    	console.log('finish: addProject_get_set 1'); 	
 	  	assert.deepEqual(
 	  		mikeStore.getState(),
 	  		$.extend(
@@ -166,7 +167,8 @@ QUnit.test('Store modifications',function(assert){
 
 	//test 2
 
-    emitterImpl.once('Mike2.updated',function(){    	
+    emitterImpl.once('Mike2.updated',function(){    
+    	console.log('finish: addProject_get_set 2'); 	
 	  	assert.deepEqual(
 	  		mikeStore.getState(),
 	  		$.extend(
@@ -215,7 +217,8 @@ QUnit.test('Store modifications',function(assert){
 
     //test 3
 
-    emitterImpl.once('Mike2.updated',function(){    	
+    emitterImpl.once('Mike2.updated',function(){  
+    	console.log('finish: addProject_use')  	
 	  	assert.deepEqual(
 	  		mikeStore.getState(),
 	  		$.extend(
@@ -279,9 +282,11 @@ QUnit.test('Store modifications',function(assert){
 	//test 5+
 
 	//wait last to end to start new test
-	emitterImpl.once('Mike2.updated',function(){
+	emitterImpl.once('Mike2.updated',function(res){
+		console.log('finish: upper',res); 
 	
-	    emitterImpl.once('Mike2.updated',function(){    	
+	    emitterImpl.once('Mike2.updated',function(res){ 
+	    	console.log('finish: addProject with get set - multi params pass - chained',res); 
 		  	assert.deepEqual(
 		  		mikeStore.getState(),
 		  		$.extend(
@@ -335,6 +340,7 @@ QUnit.test('Store modifications',function(assert){
 		//test 6-7
 
 		emitterImpl.once('Mike2.done',function(result){ 
+			console.log('finish: addProject with get set - rollbacked',result); 
 			assert.equal(result.status,'rollbacked','Catched Emited rollbacked');
 			dones[6]();
 
@@ -394,7 +400,8 @@ QUnit.test('Store modifications',function(assert){
 
 		//test 8-9
 
-		emitterImpl.once('Mike2.addProject_setChanged.done',function(result){ 
+		emitterImpl.once('Mike2.addProject_setChanged.done',function(result){
+			console.log('finish: addProject_setChanged',result) 
 			assert.equal(result.status,'updated','Catched Emited updated on specific event');
 			dones[8]();
 
