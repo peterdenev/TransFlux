@@ -26,12 +26,12 @@
         }
     };
 
-    var saveHandlers = function(evName, cb, el){       
+    var saveHandlers = function(evName, cb, el){
         if(!el.hasOwnProperty(FF)) 
             el[FF] = {};
         if(!el[FF].hasOwnProperty(_l)){
             el[FF][_l] = {}
-        }        
+        }             
         if(!el[FF][_l].hasOwnProperty[evName]) 
             el[FF][_l][evName] = [];        
         el[FF][_l][evName].push(cb);
@@ -102,7 +102,29 @@
                 el.removeEventListener(evName, handlers[h_key]);
             }
             clearHandlers(el, evName );
-        }        
+        },
+        standart: {
+            on: function(evName, cb){
+                var newCb = function(e,data,cb_cb){
+                    return cb.apply(cb,data);
+                }
+                FunFire.on(evName, newCb, window)
+            },
+            emit: function(evName /*, arg1, arg2, ... */){
+                var args = Array.prototype.slice.call(arguments);
+                evName = args.shift(); 
+                return FunFire.emit.apply(this ,[evName, window, args])
+            },
+            once: function(evName, cb){
+                var newCb = function(e,data,cb_cb){
+                    return cb.apply(cb,data);
+                }
+                FunFire.once(evName, newCb, window)
+            },
+            off : function(evName){
+                FunFire.off(evName, window)
+            }
+        } 
     };
 
     return FunFire;

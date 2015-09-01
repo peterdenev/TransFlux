@@ -40,29 +40,35 @@ function startUp(){
         	this.emitCommit();
         },
         addProjectSetChanged: function(proj){
+        	//debugger;
         	var projs = this.get('projects');
         	projs.push(proj);
         	this.setChanged('projects');
         	this.emitCommit(); 
-        },
-        addProjectChain: function(proj){
-        	this.addProjectGetSet(data);
-        },
+        },        
         addProjectRollback: function(proj){
+        	//debugger;
         	var projs = this.get('projects');
         	projs.push(proj);
         	this.set('projects',projs);
         	this.emitRollback(); 
         },
+        addProjectMultiParams: function(name, langs){
+        	var proj = {
+        		name: name,
+        		lang: langs
+        	}
+        	this.addProjectGetSet(proj);
+        }
     }
 
     var obj_map_1 = {
     	actionsMap : {
 	    	addProject_get_set: 'addProjectGetSet',
 	    	addProject_use: 'addProjectUse',
-	    	addProject_setChanged: 'addProjectSetChanged',
-	    	addProject_chain: 'addProjectChain',
+	    	addProject_setChanged: 'addProjectSetChanged',	    	
 	    	addProject_rollback: 'addProjectRollback',
+	    	addProject_multi_params: 'addProjectMultiParams',
 	    }
 	}
 
@@ -77,8 +83,12 @@ function startUp(){
 
 }
 
+function runAsync(func){
+	setTimeout(func,0);
+}
 
-QUnit.test( "STORE init", function( assert ) {
+
+QUnit.test( "Store init", function( assert ) {
 	var init = startUp();	
 
   	var mikeStore = StoreCreator('Mike.',init.obj_1);
@@ -99,7 +109,7 @@ QUnit.test( "STORE init", function( assert ) {
 
 QUnit.test('Store modifications',function(assert){	
 
-	var asynchCount = 3;
+	var asynchCount = 9;
 	//prepare async
 	var dones = [];	
 	assert.expect(asynchCount);
@@ -250,16 +260,210 @@ QUnit.test('Store modifications',function(assert){
 	})
 
 	//debugger;
-	emitterImpl.emit('Mike2.addProject_use',{   
-            name: 'Nacepin',
-            lang: ['none']
-    })
+	setTimeout(function(){
+		emitterImpl.emit('Mike2.addProject_use',{   
+	            name: 'Nacepin',
+	            lang: ['none']
+	    })
+	},0);
 
-    /*assert.equal(
+	
+    assert.equal(
     	mikeStore.getState()._stateVersion,
     	2,
     	'an action was called but the last Stable state must be with old data/version'
-    )*/
+    )
+    dones[4]();
+	
+
+	//test 5+
+
+	//wait last to end to start new test
+	emitterImpl.once('Mike2.updated',function(){
+	
+	    emitterImpl.once('Mike2.updated',function(){    	
+		  	assert.deepEqual(
+		  		mikeStore.getState(),
+		  		$.extend(
+		  		{
+		  			_stateVersion: 4,
+		  			name: 'mike',
+			        info: {
+			            age: 27,
+			            month: 'january',
+			            address: {
+			                city: 'Varna',
+			                street: 'slivnica',
+			                number: 1
+			            }
+			        },
+			        projects: [
+			            {   
+			                name: 'DataFlow',
+			                lang: ['php','js']
+			            },
+			            {
+			                name: 'Poll',
+			                lang: ['cake', 'php', 'js']
+			            },
+			            {   
+				            name: 'TransFlux',
+				            lang: ['js']
+				        },
+				        {
+				        	name: 'SuperCoolProj',
+	            			lang: ['brainfuck']
+				        },
+				        {
+				        	name: 'Nacepin',
+	            			lang: ['none']
+				        },
+				        {
+				        	name: 'SinglePageApp',
+	            			lang: ['javascript']
+				        }
+			        ]		       
+			    },init.obj_map_1),
+			    'addProject with get set - multi params pass - chained'
+		  	)
+		  	dones[5]()
+		})
+
+		//debugger;
+		emitterImpl.emit('Mike2.addProject_multi_params','SinglePageApp',['javascript'])
+
+		//test 6-7
+
+		emitterImpl.once('Mike2.done',function(result){ 
+			assert.equal(result.status,'rollbacked','Catched Emited rollbacked');
+			dones[6]();
+
+		  	assert.deepEqual(
+		  		mikeStore.getState(),
+		  		$.extend(
+		  		{
+		  			_stateVersion: 4,
+		  			name: 'mike',
+			        info: {
+			            age: 27,
+			            month: 'january',
+			            address: {
+			                city: 'Varna',
+			                street: 'slivnica',
+			                number: 1
+			            }
+			        },
+			        projects: [
+			            {   
+			                name: 'DataFlow',
+			                lang: ['php','js']
+			            },
+			            {
+			                name: 'Poll',
+			                lang: ['cake', 'php', 'js']
+			            },
+			            {   
+				            name: 'TransFlux',
+				            lang: ['js']
+				        },
+				        {
+				        	name: 'SuperCoolProj',
+	            			lang: ['brainfuck']
+				        },
+				        {
+				        	name: 'Nacepin',
+	            			lang: ['none']
+				        },
+				        {
+				        	name: 'SinglePageApp',
+	            			lang: ['javascript']
+				        }
+			        ]		       
+			    },init.obj_map_1),
+			    'addProject with get set - rollbacked'
+		  	)
+		  	dones[7]()
+		})
+
+		//debugger;
+		emitterImpl.emit('Mike2.addProject_rollback',{   
+            name: 'MyDeepSecret',
+            lang: ['human','unspeakable']
+	    })
+
+
+		//test 8-9
+
+		emitterImpl.once('Mike2.addProject_setChanged.done',function(result){ 
+			assert.equal(result.status,'updated','Catched Emited updated on specific event');
+			dones[8]();
+
+		  	assert.deepEqual(
+		  		mikeStore.getState(),
+		  		$.extend(
+		  		{
+		  			_stateVersion: 5,
+		  			name: 'mike',
+			        info: {
+			            age: 27,
+			            month: 'january',
+			            address: {
+			                city: 'Varna',
+			                street: 'slivnica',
+			                number: 1
+			            }
+			        },
+			        projects: [
+			            {   
+			                name: 'DataFlow',
+			                lang: ['php','js']
+			            },
+			            {
+			                name: 'Poll',
+			                lang: ['cake', 'php', 'js']
+			            },
+			            {   
+				            name: 'TransFlux',
+				            lang: ['js']
+				        },
+				        {
+				        	name: 'SuperCoolProj',
+	            			lang: ['brainfuck']
+				        },
+				        {
+				        	name: 'Nacepin',
+	            			lang: ['none']
+				        },
+				        {
+				        	name: 'SinglePageApp',
+	            			lang: ['javascript']
+				        },
+				        {
+				        	name: 'YetAnotherUnfinishedProject',
+            				lang: ['js','php']
+				        }
+			        ]		       
+			    },init.obj_map_1),
+			    'addProject with setChanged'
+		  	)
+		  	dones[9]()
+		})
+
+		//debugger;
+		emitterImpl.emit('Mike2.addProject_setChanged',{   
+            name: 'YetAnotherUnfinishedProject',
+            lang: ['js','php']
+	    })
+
+
+
+
+
+
+	
+
+
+	})	
 
 
 });

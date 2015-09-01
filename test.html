@@ -11,14 +11,19 @@
   <script src="jquery-1.11.3.min.js"></script>
   <script src="qunit-1.18.0.js"></script>
   <script>
-  //fake AMD
-  function define(name, deps, cb){
-  	window[name] = cb();
-  }
+	  //fake AMD
+	  function define(name, deps, cb){
+	  	window[name] = cb();
+	  }
   </script>
-  <!-- <script src="FunFire.js"></script> -->
-  <script src="eventemitter2.js"></script>
-  <script>
+
+  <script src="FunFire.js"></script> 
+  <script type="text/javascript">
+ 	  var emitterImpl = FunFire.standart;
+  </script>
+
+   <!--  <script src="eventemitter2.js"></script>
+  <script> 
   	var emitterImpl = new EventEmitter2({
 	      // use wildcards.
 	      wildcard: true,
@@ -30,6 +35,7 @@
 	      maxListeners: 20
 	})	
   </script>
+ -->
   <script src="ObjectHelper.js"></script>
   <script src="flux.js"></script>
   <script src="tests.js"></script>

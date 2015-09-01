@@ -3,7 +3,7 @@ if(!emitterImpl){
     throw 'Need to set an eventemitter implementation for - emitterImpl'
 }
 
-var TransactStore = function(store_prefix, model_data, funcs) {
+var TransactStore = function(store_prefix, model_data, funcs, origin_event_name) {
     for(var i in funcs){
         this[i] = funcs[i]; 
     }
@@ -52,11 +52,17 @@ var TransactStore = function(store_prefix, model_data, funcs) {
     }
 
     this.emitCommit = function(){
-        this.emit('commit', {changes: _changes})
+        var payload = {changes: _changes, origin_event_name: origin_event_name};
+        this.emit('commit', payload)
+        this.emit(origin_event_name+'.commit', payload)       
         //self._changes = {};
     }       
-    this.emitRollback = function(reason){       
-        this.emit('rollback', {/*changes: _changes,*/ reason: reason})
+    this.emitRollback = function(reason){      
+        var payload = {/*changes: _changes,*/ reason: reason, origin_event_name: origin_event_name, status:'rollbacked'}
+        this.emit('rollbacked', payload)
+        this.emit(origin_event_name+'.rollbacked', payload)
+        this.emit(origin_event_name+'.done', payload)
+        this.emit('done', payload)
         //self._changes = {};
     }   
 }
@@ -91,16 +97,24 @@ var StateManager = function(store_prefix, onlyData){
     }
 
     //FUTURE: in queue
-    emitterImpl.on(store_prefix+'commit',function(data){
-        var changes = data.changes
+    emitterImpl.on(store_prefix+'commit',function(data){      
+        //debugger;  
         //set changes to this
-        for(var key_path in changes){
-            ObjectHelper.setNested(_data, key_path, changes[key_path])//is it enought or it is a ref?                             
+        for(var key_path in data.changes){
+            ObjectHelper.setNested(_data, key_path, data.changes[key_path])//is it enought or it is a ref?                             
         }       
         //remake states
         _makeState();
         //notify others for finished update (for unlock and enqueue)
-        emitterImpl.emit(store_prefix+'updated', {state: getReadOnlyState(), changes: changes});    
+        var peyload = {
+            state: getReadOnlyState(), 
+            changes: data.changes, 
+            status:'updated', 
+            origin_event_name: data.origin_event_name
+        };        
+        emitterImpl.emit(store_prefix+'updated', peyload);  
+        emitterImpl.emit(store_prefix+data.origin_event_name+'.done', peyload) 
+        emitterImpl.emit(store_prefix+'done', peyload)  
     },window)
 
     //init load
@@ -142,7 +156,8 @@ var StoreCreator = function(store_prefix, data_object){
 
     //add to quese
     function _mapOn(event_name, func_name){       
-        emitterImpl.on(event_name,function(args){                          
+        emitterImpl.on(event_name,function(){             
+            var args = Array.prototype.slice.call(arguments);                     
             _execQueue.push({
                 func_name: func_name,
                 args: args,
@@ -158,8 +173,8 @@ var StoreCreator = function(store_prefix, data_object){
         if(!_locked || force){                
             _locked = true;
             if(_execQueue.length>0){
-                var job = _execQueue.shift();
-                _execTransact(job.func_name ,job.args);  
+                var job = _execQueue.shift();                
+                _execTransact(job.func_name ,job.args, job.event.name);  
             }else{
                 _locked = false;
             }
@@ -169,21 +184,25 @@ var StoreCreator = function(store_prefix, data_object){
         _tryEnqueue(true);
     }
 
-    function _execTransact(func_name, args){
+    function _execTransact(func_name, args, origin_event_name){
         //hint may need to be in custom namespace with params //FIXME
         //begin new trnsaction
         //make an instance with last stable data and all functions       
-        var transactState = new TransactStore(store_prefix, stateMngr.getLastStableState(), splitData.funcs);        
+        var transactState = new TransactStore(store_prefix, stateMngr.getLastStableState(), splitData.funcs, origin_event_name);        
         try{
-            transactState[func_name].apply(transactState,[args]);
+            transactState[func_name].apply(transactState,args);
         }catch(err){
             console.error('TransFlux','Action exception in function "'+func_name+'"',err);
             transactState.emitRollback(err);
         } 
     }
 
-    emitterImpl.on(store_prefix+'updated', _enqueue);
-    emitterImpl.on(store_prefix+'rollback', _enqueue);
+    //emitterImpl.on(store_prefix+'updated', _enqueue);
+    //emitterImpl.on(store_prefix+'rollbacked', _enqueue);
+    emitterImpl.on(store_prefix+'done', _enqueue);
+    /*emitterImpl.on(store_prefix+'done', function(){
+        setTimeout(_enqueue,0);
+    });*/
 
     //subscribe store actions (wait for transaction trigger)
     if(splitData.data.hasOwnProperty('actionsMap')){
