@@ -1,0 +1,4 @@
+Future:
+- optimize _changes array
+- implement locking with keys (with regex)
+- what about ajax?

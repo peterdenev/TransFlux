@@ -22,6 +22,8 @@ if(typeof emitterImpl.emitToMany != 'function'){
     }
 }
 
+var event_name_separator = typeof event_name_separator != 'undefined' ? event_name_separator : '.';
+
 var TransactStore = function(store_prefix, model_data, funcs, origin_event_name) {
     for(var i in funcs){
         this[i] = funcs[i]; 
@@ -73,7 +75,7 @@ var TransactStore = function(store_prefix, model_data, funcs, origin_event_name)
     this.emitCommit = function(){
         var payload = {changes: _changes, origin_event_name: origin_event_name};
         emitterImpl.emit(store_prefix+'commit', payload)
-        emitterImpl.emit(origin_event_name+'.commit', payload)       
+        emitterImpl.emit(origin_event_name+event_name_separator+'commit', payload)       
         //self._changes = {};
     }       
     this.emitRollback = function(reason){      
@@ -81,8 +83,8 @@ var TransactStore = function(store_prefix, model_data, funcs, origin_event_name)
         emitterImpl.emitToMany([            
             store_prefix+'done',
             store_prefix+'rollbacked',
-            origin_event_name+'.done',
-            origin_event_name+'.rollbacked',
+            origin_event_name+event_name_separator+'done',
+            origin_event_name+event_name_separator+'rollbacked',
             store_prefix+'_readyForNext',
         ],payload)
         //self._changes = {};
@@ -138,8 +140,8 @@ var StateManager = function(store_prefix, onlyData){
             //store_prefix+'_readyForNext',
             store_prefix+'done',
             store_prefix+'updated',
-            data.origin_event_name+'.done',
-            data.origin_event_name+'.updated',
+            data.origin_event_name+event_name_separator+'done',
+            data.origin_event_name+event_name_separator+'updated',
             store_prefix+'_readyForNext',
         ],payload)
         
@@ -235,10 +237,34 @@ var StoreCreator = function(store_prefix, data_object){
         setTimeout(_enqueue,0);
     });*/
 
+    function normalize_actionsMap(actionMap){
+        var aMap = {};
+
+
+        if(splitData.data.hasOwnProperty('actionsMap')){
+            for(var event_name in splitData.data.actionsMap){
+                var func_name = splitData.data.actionsMap[event_name];
+                if(splitData.funcs.hasOwnProperty(func_name)){
+
+                }
+            }
+        }        
+    }
+
     //subscribe store actions (wait for transaction trigger)
     if(splitData.data.hasOwnProperty('actionsMap')){
         for(var event_name in splitData.data.actionsMap){
-            var func_name = splitData.data.actionsMap[event_name];
+            var func_data = splitData.data.actionsMap[event_name];
+            var func_name = func_data
+            var func_lock = ['*']
+            if(typeof func_data == 'object'){
+                if(func_data.hasOwnProperty('func')){
+                    func_name = func_data.func;
+                }
+                if (func_data.hasOwnProperty('lock')){
+                    func_lock = func_data.lock
+                }
+            }
             if(splitData.funcs.hasOwnProperty(func_name)){                
                 _mapOn(store_prefix+event_name,func_name);
             }else{

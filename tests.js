@@ -69,7 +69,32 @@ function startUp(){
 	    	addProject_setChanged: 'addProjectSetChanged',	    	
 	    	addProject_rollback: 'addProjectRollback',
 	    	addProject_multi_params: 'addProjectMultiParams',
-	    }
+	    	updateInfo_lock_info: {
+	    		func: 'updateInfo',
+	    		lock: ['info']
+	    	},
+	    	updateInfoAge_lock_age:{
+	    		func: 'updateInfoAge',
+	    		lock: ['info.age']
+	    	},
+	    	updateInfoMonth_lock_month:{
+	    		func: 'updateInfoMonth',
+	    		lock: ['info.month']
+	    	},
+	    	updateName_lock_name:{
+	    		func: 'updateName',
+	    		lock: ['name']
+	    	},
+	    	updateInfoAgeMonth_lock_age_month:{
+	    		func: 'updateInfoAgeMonth',
+	    		lock: ['info.age','info.month']
+	    	},
+	    	updateInfoAgeMonth_lock_age:{
+	    		func: 'updateInfoAgeMonth',
+	    		lock: ['info.age']
+	    	},
+
+	    },	    
 	}
 
 
