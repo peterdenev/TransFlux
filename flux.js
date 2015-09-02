@@ -15,7 +15,7 @@ if(typeof emitterImpl.emitAsync != 'function'){
 
 if(typeof emitterImpl.emitToMany != 'function'){
     emitterImpl.emitToMany = function(event_names, data){
-        console.log(event_names);
+        //console.log(event_names);
         for(var i in event_names){           
             emitterImpl.emit(event_names[i], data);           
         }
@@ -198,12 +198,12 @@ var StoreCreator = function(store_prefix, data_object){
     }
 
     function _tryEnqueue(force){   
-        console.log('try Enqueue');         
+        //console.log('try Enqueue');         
         if(!_locked || force){                
             _locked = true;
             if(_execQueue.length>0){
                 var job = _execQueue.shift(); 
-                console.log('Start job: ',job);               
+                //console.log('Start job: ',job);               
                 _execTransact(job.func_name ,job.args, job.event.name);  
             }else{
                 _locked = false;
@@ -211,7 +211,7 @@ var StoreCreator = function(store_prefix, data_object){
         }
     }
     function _enqueue(){     
-        console.log('_Enqueue');   
+        //console.log('_Enqueue');   
         _tryEnqueue(true);
     }
 
