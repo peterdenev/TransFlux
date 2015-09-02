@@ -631,3 +631,433 @@ QUnit.test('Store more modifications',function(assert){
 
 
 })
+
+
+QUnit.test('Store parallel modifications',function(assert){	
+
+	var asynchCount = 2;
+	//prepare async
+	var dones = [];	
+	assert.expect(asynchCount);
+	for(var d=1; d<=asynchCount; d++){
+		dones[d] = assert.async()
+	}
+
+
+	var init = startUp();
+	//debugger;
+  	var mikeStore = StoreCreator('Mike4.',init.obj_1);
+  	
+
+	//debugger;
+	setTimeout(function(){
+		emitterImpl.emit('Mike4.addProject_multi_params','App1',['js'])
+	},0);
+
+	setTimeout(function(){
+		emitterImpl.emit('Mike4.addProject_multi_params','App2',['php'])
+	},0);
+
+	var passed = 0;
+
+	var expects = [
+		$.extend({
+  			_stateVersion: 1,
+  			name: 'mike',
+	        info: {
+	            age: 27,
+	            month: 'january',
+	            address: {
+	                city: 'Varna',
+	                street: 'slivnica',
+	                number: 1
+	            }
+	        },
+	        projects: [
+	            {   
+	                name: 'DataFlow',
+	                lang: ['php','js']
+	            },
+	            {
+	                name: 'Poll',
+	                lang: ['cake', 'php', 'js']
+	            },		           
+		        {
+		        	name: 'App1',
+        			lang: ['js']
+		        }
+	        ]		       
+		},init.obj_map_1),
+
+
+		$.extend({
+  			_stateVersion: 2,
+  			name: 'mike',
+	        info: {
+	            age: 27,
+	            month: 'january',
+	            address: {
+	                city: 'Varna',
+	                street: 'slivnica',
+	                number: 1
+	            }
+	        },
+	        projects: [
+	            {   
+	                name: 'DataFlow',
+	                lang: ['php','js']
+	            },
+	            {
+	                name: 'Poll',
+	                lang: ['cake', 'php', 'js']
+	            },	
+	            {
+		        	name: 'App1',
+        			lang: ['js']
+		        },	           
+		        {
+		        	name: 'App2',
+        			lang: ['php']
+		        }
+	        ]		       
+		},init.obj_map_1),
+	]
+
+	
+
+	emitterImpl.on('Mike4.updated',function(res){ 
+    	console.log('finish: addProject with get set - multi params pass - chained - ',res); 
+    	var current_in = passed;
+    	passed++;
+	  	assert.deepEqual(
+	  		mikeStore.getState(),
+	  		expects[current_in],
+		    'addProject with get set - multi params pass - chained - '+current_in
+	  	)
+	  	dones[current_in+1]()
+	})
+
+
+
+})
+
+QUnit.test('Store parallel 2 modifications',function(assert){	
+
+	var asynchCount = 2;
+	//prepare async
+	var dones = [];	
+	assert.expect(asynchCount);
+	for(var d=1; d<=asynchCount; d++){
+		dones[d] = assert.async()
+	}
+
+
+	var init = startUp();
+	//debugger;
+  	var mikeStore = StoreCreator('Mike5.',init.obj_1);
+
+  	var passed = 0;
+
+	var expects = [
+		$.extend({
+  			_stateVersion: 1,
+  			name: 'mike',
+	        info: {
+	            age: 27,
+	            month: 'january',
+	            address: {
+	                city: 'Varna',
+	                street: 'slivnica',
+	                number: 1
+	            }
+	        },
+	        projects: [
+	            {   
+	                name: 'DataFlow',
+	                lang: ['php','js']
+	            },
+	            {
+	                name: 'Poll',
+	                lang: ['cake', 'php', 'js']
+	            },		           
+		        {
+		        	name: 'App2',
+        			lang: ['php']
+		        }
+	        ]		       
+		},init.obj_map_1),
+
+
+		$.extend({
+  			_stateVersion: 2,
+  			name: 'mike',
+	        info: {
+	            age: 27,
+	            month: 'january',
+	            address: {
+	                city: 'Varna',
+	                street: 'slivnica',
+	                number: 1
+	            }
+	        },
+	        projects: [
+	            {   
+	                name: 'DataFlow',
+	                lang: ['php','js']
+	            },
+	            {
+	                name: 'Poll',
+	                lang: ['cake', 'php', 'js']
+	            },		                       
+		        {
+		        	name: 'App2',
+        			lang: ['php']
+		        },
+		        {
+		        	name: 'App1',
+        			lang: ['js']
+		        }
+	        ]		       
+		},init.obj_map_1),
+	]
+	
+
+	emitterImpl.on('Mike5.updated',function(res){ 
+    	//console.log('finish: addProject with get set - multi params pass - chained - ',res); 
+    	var current_in = passed;
+    	passed++;
+	  	assert.deepEqual(
+	  		mikeStore.getState(),
+	  		expects[current_in],
+		    'addProject with get set - multi params pass - chained - '+current_in
+	  	)
+	  	dones[current_in+1]()
+	})
+  	
+
+	//debugger;
+	setTimeout(function(){
+		emitterImpl.emit('Mike5.addProject_multi_params','App1',['js'])
+	},0);
+
+	//setTimeout(function(){
+		emitterImpl.emit('Mike5.addProject_multi_params','App2',['php'])
+	//},0);
+
+})
+
+
+QUnit.test('Store parallel 3 modifications',function(assert){	
+
+	var asynchCount = 2;
+	//prepare async
+	var dones = [];	
+	assert.expect(asynchCount);
+	for(var d=1; d<=asynchCount; d++){
+		dones[d] = assert.async()
+	}
+
+
+	var init = startUp();
+	//debugger;
+  	var mikeStore = StoreCreator('Mike6.',init.obj_1);
+
+  	var passed = 0;
+
+	var expects = [
+		$.extend({
+  			_stateVersion: 1,
+  			name: 'mike',
+	        info: {
+	            age: 27,
+	            month: 'january',
+	            address: {
+	                city: 'Varna',
+	                street: 'slivnica',
+	                number: 1
+	            }
+	        },
+	        projects: [
+	            {   
+	                name: 'DataFlow',
+	                lang: ['php','js']
+	            },
+	            {
+	                name: 'Poll',
+	                lang: ['cake', 'php', 'js']
+	            },		           
+		        {
+		        	name: 'App1',
+        			lang: ['js']
+		        }
+	        ]		       
+		},init.obj_map_1),
+
+
+		$.extend({
+  			_stateVersion: 2,
+  			name: 'mike',
+	        info: {
+	            age: 27,
+	            month: 'january',
+	            address: {
+	                city: 'Varna',
+	                street: 'slivnica',
+	                number: 1
+	            }
+	        },
+	        projects: [
+	            {   
+	                name: 'DataFlow',
+	                lang: ['php','js']
+	            },
+	            {
+	                name: 'Poll',
+	                lang: ['cake', 'php', 'js']
+	            },		                       
+		        {
+		        	name: 'App1',
+        			lang: ['js']
+		        },
+		        {
+		        	name: 'App2',
+        			lang: ['php']
+		        }
+	        ]		       
+		},init.obj_map_1),
+	]
+	
+
+	emitterImpl.on('Mike6.updated',function(res){ 
+    	//console.log('finish: addProject with get set - multi params pass - chained - ',res); 
+    	var current_in = passed;
+    	passed++;
+	  	assert.deepEqual(
+	  		mikeStore.getState(),
+	  		expects[current_in],
+		    'addProject with get set - multi params pass - chained - '+current_in
+	  	)
+	  	dones[current_in+1]()
+	})
+  	
+
+	//debugger;
+	//setTimeout(function(){
+		emitterImpl.emit('Mike6.addProject_multi_params','App1',['js'])
+	//},0);
+
+	setTimeout(function(){
+		emitterImpl.emit('Mike6.addProject_multi_params','App2',['php'])
+	},0);
+
+
+
+
+})
+
+
+QUnit.test('Store parallel 4 modifications',function(assert){	
+
+	var asynchCount = 2;
+	//prepare async
+	var dones = [];	
+	assert.expect(asynchCount);
+	for(var d=1; d<=asynchCount; d++){
+		dones[d] = assert.async()
+	}
+
+
+	var init = startUp();
+	//debugger;
+  	var mikeStore = StoreCreator('Mike7.',init.obj_1);
+
+  	var passed = 0;
+
+	var expects = [
+		$.extend({
+  			_stateVersion: 1,
+  			name: 'mike',
+	        info: {
+	            age: 27,
+	            month: 'january',
+	            address: {
+	                city: 'Varna',
+	                street: 'slivnica',
+	                number: 1
+	            }
+	        },
+	        projects: [
+	            {   
+	                name: 'DataFlow',
+	                lang: ['php','js']
+	            },
+	            {
+	                name: 'Poll',
+	                lang: ['cake', 'php', 'js']
+	            },		           
+		        {
+		        	name: 'App1',
+        			lang: ['js']
+		        }
+	        ]		       
+		},init.obj_map_1),
+
+
+		$.extend({
+  			_stateVersion: 2,
+  			name: 'mike',
+	        info: {
+	            age: 27,
+	            month: 'january',
+	            address: {
+	                city: 'Varna',
+	                street: 'slivnica',
+	                number: 1
+	            }
+	        },
+	        projects: [
+	            {   
+	                name: 'DataFlow',
+	                lang: ['php','js']
+	            },
+	            {
+	                name: 'Poll',
+	                lang: ['cake', 'php', 'js']
+	            },		                       
+		        {
+		        	name: 'App1',
+        			lang: ['js']
+		        },
+		        {
+		        	name: 'App2',
+        			lang: ['php']
+		        }
+	        ]		       
+		},init.obj_map_1),
+	]
+	
+
+	emitterImpl.on('Mike7.updated',function(res){ 
+    	//console.log('finish: addProject with get set - multi params pass - chained - ',res); 
+    	var current_in = passed;
+    	passed++;
+	  	assert.deepEqual(
+	  		mikeStore.getState(),
+	  		expects[current_in],
+		    'addProject with get set - multi params pass - chained - '+current_in
+	  	)
+	  	dones[current_in+1]()
+	})
+  	
+
+	//debugger;
+	//setTimeout(function(){
+		emitterImpl.emit('Mike7.addProject_multi_params','App1',['js'])
+	//},0);
+
+	//setTimeout(function(){
+		emitterImpl.emit('Mike7.addProject_multi_params','App2',['php'])
+	//},0);
+
+})
+
