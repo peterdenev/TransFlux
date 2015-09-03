@@ -8,6 +8,7 @@
 <body>
   <div id="qunit"></div>
   <div id="qunit-fixture"></div>
+
   <script src="jquery-1.11.3.min.js"></script>
   <script src="qunit-1.18.0.js"></script>
   <script>
@@ -23,23 +24,14 @@
   </script>
 -->
    <script src="eventemitter2.js"></script>
-  <script> 
-  	var event_name_separator = '.'
-  	var emitterImpl = new EventEmitter2({
-	      // use wildcards.
-	      wildcard: true,
-	      // the delimiter used to segment namespaces, defaults to `.`.
-	      delimiter: event_name_separator, 
-	      // if you want to emit the newListener event set to true.
-	      newListener: false, 
-	      // max listeners that can be assigned to an event, default 10.
-	      maxListeners: 20
-	})	
-	
-  </script>
- 
+  <script>   
+  	var emitterImpl = new EventEmitter2()
+  	var deepCopyImpl = function(origin_obj){
+  		return $.extend(true,{},origin_obj) 
+  	}
+  </script> 
   <script src="ObjectHelper.js"></script>
-  <script src="flux.js"></script>
+  <script src="TransFlux.js"></script>
   <script>
   	//TransFlux.options.evSep = event_name_separator
   </script>

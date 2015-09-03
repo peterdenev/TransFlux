@@ -1,18 +1,22 @@
 (function (root, factory) { // UMD from https://github.com/umdjs/umd/blob/master/returnExports.js
     if(typeof define === 'function' && define.amd) {
-        define('TransFlux',['emitterImpl'], factory);
+        define('TransFlux',['emitterImpl','deepCopyImpl'], factory);
     }else if (typeof exports === 'object') {
-        module.exports = factory(emitterImpl);
+        module.exports = factory(emitterImpl, deepCopyImpl);
     } else {
         // Browser globals
-        root.TransFlux = factory(emitterImpl);
+        root.TransFlux = factory(emitterImpl, deepCopyImpl);
     }
-}(this, function (emitterImpl) {
+}(this, function (emitterImpl, deepCopyImpl) {
 
     //HELPERS
 
     if(!emitterImpl){
-        throw 'Need to set an eventemitter implementation for - emitterImpl'
+        throw 'Need to set an eventemitter implementation for - emitterImpl (Ex. new EventEmitter2())'
+    }
+
+    if(!deepCopyImpl){
+        throw 'Need to set a deep copy implementation for - deepCopyImpl (Ex. function(origin_obj){ return $.extend(true,{},origin_obj) } )'
     }
 
     setEmitToMany();    
@@ -165,7 +169,7 @@
 
 
     var StateManager = function(store_prefix, onlyData){
-        var _data = $.extend(true,{},onlyData);
+        var _data = deepCopyImpl(onlyData);
         _data._stateVersion = -1; 
 
         var _getLastVersionNum = function(){
@@ -182,13 +186,13 @@
         }
 
         var _getLastStableState = function(){
-            return $.extend(true,{},_lastStableState); // copy the snapshot to prevent edit local var (multi call same var)
+            return deepCopyImpl(_lastStableState); // copy the snapshot to prevent edit local var (multi call same var)
             //return _lastStableState;
         }
         var _makeState = function(){
             _data._stateVersion++;
-            _lastStableState = $.extend(true,{},_data); //snapshot of current data
-            _lastStableState_readOnly = ObjectHelper.deepFreeze($.extend(true,{},_data));
+            _lastStableState = deepCopyImpl(_data); //snapshot of current data
+            _lastStableState_readOnly = ObjectHelper.deepFreeze(deepCopyImpl(_data));
         }
 
         var _commitQueue = [];
