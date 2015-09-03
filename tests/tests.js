@@ -1,5 +1,3 @@
-var StoreCreator = TransFlux.StoreCreator;
-
 function startUp(){
 
 	var obj_data_1 = {
@@ -154,7 +152,7 @@ function runAsync(func){
 QUnit.test( "Store init", function( assert ) {
 	var init = startUp();	
 
-  	var mikeStore = StoreCreator('Mike',init.obj_1);
+  	var mikeStore = TransFlux.createStore('Mike',init.obj_1);
 
   	assert.ok(typeof mikeStore == 'object','Store is an object')
   	//assert.ok(mikeStore,'Store is instqance of Store')
@@ -182,7 +180,7 @@ QUnit.test('Store single modifications',function(assert){
 
 	var init = startUp();
 	//debugger;
-  	var mikeStore = StoreCreator('Mike0',init.obj_1);
+  	var mikeStore = TransFlux.createStore('Mike0',init.obj_1);
  	
     emitterImpl.once('Mike0.updated',function(){   
     	//console.log('finish: addProject_get_set 1'); 	
@@ -244,7 +242,7 @@ QUnit.test('Store modifications',function(assert){
 
 	var init = startUp();
 	//debugger;
-  	var mikeStore = StoreCreator('Mike2',init.obj_1);
+  	var mikeStore = TransFlux.createStore('Mike2',init.obj_1);
 
   	var passed = 0;
 
@@ -629,8 +627,8 @@ QUnit.test('Store more modifications',function(assert){
 
 
 	var init = startUp();
-	debugger;
-  	var mikeStore = StoreCreator('Mike3',init.obj_1);
+	//debugger;
+  	var mikeStore = TransFlux.createStore('Mike3',init.obj_1);
 
   	var passed = 0;
 
@@ -807,7 +805,7 @@ QUnit.test('Store parallel modifications',function(assert){
 
 	var init = startUp();
 	//debugger;
-  	var mikeStore = StoreCreator('Mike4',init.obj_1);
+  	var mikeStore = TransFlux.createStore('Mike4',init.obj_1);
   	
 
 	//debugger;
@@ -915,7 +913,7 @@ QUnit.test('Store parallel 2 modifications',function(assert){
 
 	var init = startUp();
 	//debugger;
-  	var mikeStore = StoreCreator('Mike5',init.obj_1);
+  	var mikeStore = TransFlux.createStore('Mike5',init.obj_1);
 
   	var passed = 0;
 
@@ -1021,7 +1019,7 @@ QUnit.test('Store parallel 3 modifications',function(assert){
 
 	var init = startUp();
 	//debugger;
-  	var mikeStore = StoreCreator('Mike6',init.obj_1);
+  	var mikeStore = TransFlux.createStore('Mike6',init.obj_1);
 
   	var passed = 0;
 
@@ -1130,7 +1128,7 @@ QUnit.test('Store parallel 4 modifications',function(assert){
 
 	var init = startUp();
 	//debugger;
-  	var mikeStore = StoreCreator('Mike7',init.obj_1);
+  	var mikeStore = TransFlux.createStore('Mike7',init.obj_1);
 
   	var passed = 0;
 
@@ -1235,7 +1233,7 @@ QUnit.test('Store parallel 5 modifications',function(assert){
 
 	var init = startUp();
 	//debugger;
-  	var mikeStore = StoreCreator('Mike8',init.obj_1);
+  	var mikeStore = TransFlux.createStore('Mike8',init.obj_1);
 
   	var passed = 0;
 
@@ -1342,7 +1340,7 @@ QUnit.test('Store modifications - locks 1 - single ',function(assert){
 
 	var init = startUp();
 	//debugger;
-  	var mikeStore = StoreCreator('Mike9',init.obj_1);
+  	var mikeStore = TransFlux.createStore('Mike9',init.obj_1);
 
   	var passed = 0;
 
@@ -1414,7 +1412,7 @@ QUnit.test('Store modifications - locks 2 - single ',function(assert){
 
 	var init = startUp();
 	//debugger;
-  	var mikeStore = StoreCreator('Mike10',init.obj_1);
+  	var mikeStore = TransFlux.createStore('Mike10',init.obj_1);
 
   	var passed = 0;
 

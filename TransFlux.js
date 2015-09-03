@@ -1,22 +1,26 @@
 (function (root, factory) { // UMD from https://github.com/umdjs/umd/blob/master/returnExports.js
     if(typeof define === 'function' && define.amd) {
-        define('TransFlux',['emitterImpl','deepCopyImpl'], factory);
+        define('TransFlux',['ObjectHelper', 'emitterImpl','deepCopyImpl'], factory);
     }else if (typeof exports === 'object') {
-        module.exports = factory(emitterImpl, deepCopyImpl);
+        module.exports = factory(ObjectHelper, emitterImpl, deepCopyImpl);
     } else {
         // Browser globals
-        root.TransFlux = factory(emitterImpl, deepCopyImpl);
+        root.TransFlux = factory(ObjectHelper, emitterImpl, deepCopyImpl);
     }
-}(this, function (emitterImpl, deepCopyImpl) {
+}(this, function (ObjectHelper, emitterImpl, deepCopyImpl) {
 
     //HELPERS
 
+    if(!ObjectHelper){
+        throw 'TransFlux hard depends on ObjectHelper, but not found!'
+    }
+
     if(!emitterImpl){
-        throw 'Need to set an eventemitter implementation for - emitterImpl (Ex. new EventEmitter2())'
+        throw 'TransFlux: Need to set an eventemitter implementation for - emitterImpl (Ex. new EventEmitter2())'
     }
 
     if(!deepCopyImpl){
-        throw 'Need to set a deep copy implementation for - deepCopyImpl (Ex. function(origin_obj){ return $.extend(true,{},origin_obj) } )'
+        throw 'TransFlux: Need to set a deep copy implementation for - deepCopyImpl (Ex. function(origin_obj){ return $.extend(true,{},origin_obj) } )'
     }
 
     setEmitToMany();    
@@ -252,7 +256,7 @@
         }
     }
 
-    var StoreCreator = function(store_prefix, data_object){   
+    var createStore = function(store_prefix, data_object){   
         var _locked = [];
         var _execQueue = [];   
 
@@ -353,7 +357,7 @@
             _tryEnqueue();
             //console.error('_enqueue force - need to be implemented')
         }
-        
+
         emitterImpl.on(store_prefix+_cfg.evSep+'_readyForNext', _enqueue);       
 
         //subscribe store actions (wait for transaction trigger)
@@ -373,13 +377,17 @@
         return {
             getState: _stateMngr.getReadOnlyState,
             getLastVersionNum: _stateMngr.getLastVersionNum,
+            emitter: emitterImpl,
+            prefix: store_prefix,
+            options: _cfg,
         };
     }
 
 
     return {
         options: _cfg,
-        StoreCreator: StoreCreator
+        createStore: createStore,
+        emitter: emitterImpl
     }
 
 

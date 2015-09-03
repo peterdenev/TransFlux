@@ -1,4 +1,14 @@
-define('ObjectHelper',[],function(){
+(function (root, factory) { // UMD from https://github.com/umdjs/umd/blob/master/returnExports.js
+    if(typeof define === 'function' && define.amd) {
+        define('ObjectHelper',[], factory);
+    }else if (typeof exports === 'object') {
+        module.exports = factory();
+    } else {
+        // Browser globals
+        root.ObjectHelper = factory();
+    }
+}(this, function () {
+
     function hasOwnValue(obj, val) {
 	    for(var prop in obj) {
 	        if(obj.hasOwnProperty(prop) && obj[prop] === val) {
@@ -127,6 +137,7 @@ define('ObjectHelper',[],function(){
         setNested:setNested,
         deepFreeze:deepFreeze,
     }
-})
+
+}))
 
 
