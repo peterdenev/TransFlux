@@ -305,12 +305,34 @@
                     }
                 }
                 if(isAllAvailable){
-                    //if(job)   
+                    //find all event with same name like available job
+                    var same_jobs_indexes = [];
+                    for(var _i in _execQueue) {
+                        if(_execQueue[_i].event.name === job.event.name) {
+                            same_jobs_indexes.push(_i);   
+                        }
+                    }
+
+                    if(job.event.func_data.onMultiCall=='last'){
+                        //change job to last found
+                        job = _execQueue[ same_jobs_indexes[same_jobs.length-1] ];
+                    }
+
                     //lock resources
                     _locked = _locked.concat(job.event.func_data.locks)
-                    //remove from queue         
-                    _execQueue.splice(j, 1);
+
+                    if(['first','last'].indexOf(job.event.func_data.onMultiCall)!=-1){
+                        //todo: //remove all
+                        for(var ji in same_jobs_indexes){
+                            _execQueue.splice(ji, 1);
+                        }
+                    }else{ //remove only current
+                        //remove from queue         
+                        _execQueue.splice(j, 1);                        
+                    }
                     j--; //fix to get correct next
+                   
+                    
                     //exec in parallel
                     _asyncExec(job);              
                     //check for next waiting
@@ -319,13 +341,11 @@
         })
 
         function _asyncExec(job){
-            setTimeout(function(){
-                //_execTransact(job.event.func_data.func_name ,job.args, job.event, job.event.func_data.func_locks);
+            setTimeout(function(){                
                 _execTransact(job);
             },0);
         }
-
-        //function _execTransact(func_name, args, origin_event, func_locks){        
+              
         function _execTransact(job){        
             //begin new trnsaction
             //make an instance with last stable data and all functions       
