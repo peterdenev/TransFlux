@@ -24,7 +24,7 @@ if(typeof emitterImpl.emitToMany != 'function'){
     }
 }
 
-var event_name_separator = typeof event_name_separator != 'undefined' ? event_name_separator : '.';
+var _evSep = typeof _evSep != 'undefined' ? _evSep : '.';
 
 function _tryEnqueueShell(cb){
     var _isChecking = false;
@@ -97,18 +97,18 @@ var TransactStore = function(store_prefix, model_data, funcs, origin_event_name)
 
     this.emitCommit = function(){
         var emit_data = {changes: _changes, origin_event_name: origin_event_name};
-        emitterImpl.emit(store_prefix+'commit', emit_data)
-        emitterImpl.emit(origin_event_name+event_name_separator+'commit', emit_data)       
+        emitterImpl.emit(store_prefix+_evSep+'commit', emit_data)
+        emitterImpl.emit(origin_event_name+_evSep+'commit', emit_data)       
         //self._changes = {};
     }       
     this.emitRollback = function(reason){      
         var emit_data = {/*changes: _changes,*/ reason: reason, origin_event_name: origin_event_name, status:'rollbacked'}
         emitterImpl.emitToMany([            
-            store_prefix+'done',
-            store_prefix+'rollbacked',
-            origin_event_name+event_name_separator+'done',
-            origin_event_name+event_name_separator+'rollbacked',
-            store_prefix+'_readyForNext',
+            store_prefix+_evSep+'done',
+            store_prefix+_evSep+'rollbacked',
+            origin_event_name+_evSep+'done',
+            origin_event_name+_evSep+'rollbacked',
+            store_prefix+_evSep+'_readyForNext',
         ],emit_data)
         //self._changes = {};
     }   
@@ -147,11 +147,11 @@ var StateManager = function(store_prefix, onlyData){
     //var _needEnqueue = false;
 
     //FUTURE: in queue (ust be synch)
-    emitterImpl.on(store_prefix+'commit',function(data){    
+    emitterImpl.on(store_prefix+_evSep+'commit',function(data){    
         _commitQueue.push({
             data: data,
             event: {
-                name: store_prefix+'commit',
+                name: store_prefix+_evSep+'commit',
                 store_prefix: store_prefix
             }
         })
@@ -203,11 +203,11 @@ var StateManager = function(store_prefix, onlyData){
         }; 
         emitterImpl.emitToMany([
             //store_prefix+'_readyForNext',
-            store_prefix+'done',
-            store_prefix+'updated',
-            data.origin_event_name+event_name_separator+'done',
-            data.origin_event_name+event_name_separator+'updated',
-            store_prefix+'_readyForNext',
+            store_prefix+_evSep+'done',
+            store_prefix+_evSep+'updated',
+            data.origin_event_name+_evSep+'done',
+            data.origin_event_name+_evSep+'updated',
+            store_prefix+_evSep+'_readyForNext',
         ],emit_data)
     }
 
@@ -338,10 +338,9 @@ var StoreCreator = function(store_prefix, data_object){
     }
 
     function _enqueue(emit_data){     
-        //console.log('_Enqueue'); 
-        
+        //console.log('_Enqueue');         
         //remove locks  
-        var event_name = emit_data.origin_event_name.substr( (store_prefix+'.').length-1 )
+        var event_name = emit_data.origin_event_name.substr( (store_prefix+_evSep).length )
         var func_data = getActionData(event_name)
         for(var i in func_data.func_locks){
             var lock_index = _locked.indexOf(func_data.func_locks[i])
@@ -368,7 +367,7 @@ var StoreCreator = function(store_prefix, data_object){
 
     //emitterImpl.on(store_prefix+'updated', _enqueue);
     //emitterImpl.on(store_prefix+'rollbacked', _enqueue);
-    emitterImpl.on(store_prefix+'_readyForNext', _enqueue);
+    emitterImpl.on(store_prefix+_evSep+'_readyForNext', _enqueue);
     /*emitterImpl.on(store_prefix+'_readyForNext', function(){
         setTimeout(_enqueue,0);
     });*/
@@ -396,7 +395,7 @@ var StoreCreator = function(store_prefix, data_object){
         for(var event_name in splitData.data.actionsMap){
             var func_data = getActionData(event_name);            
             if(splitData.funcs.hasOwnProperty(func_data.func_name)){                
-                _mapOn(store_prefix+event_name, func_data.func_name, func_data.func_locks);
+                _mapOn(store_prefix+_evSep+event_name, func_data.func_name, func_data.func_locks);
             }else{
                 console.warn('TransFlux', 'Action method "'+func_data.func_name+'" not found for store "'+store_prefix+'"')
             }  
