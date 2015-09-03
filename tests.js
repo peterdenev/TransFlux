@@ -60,9 +60,35 @@ function startUp(){
         	}
         	this.addProjectGetSet(proj);
         },
-        //updateInfo: function(){
+        updateInfo: function(info){
+        	this.set('info',info);
+        	this.emitCommit();
+        },
+        updateInfoAge: function(age){
+        	this.set('info.age',age);
+        	this.emitCommit();
+        },
+        updateInfoMonth: function(month){
+        	this.set('info.month',month);
+        	this.emitCommit();
+        },
+        updateName: function(name){
+        	this.set('name',name);
+        	this.emitCommit();
+        },
+        updateInfoAgeMonth_each: function(age, month){
+        	this.set('info.age',age);
+        	this.set('info.month',month);
+        	this.emitCommit();
+        },
+        updateInfoAgeMonth_group: function(age, month){
+        	var t_info = this.get('info');
+        	t_info.age = age;
+        	t_info.month = month;
+        	this.set('info',t_info);        	
+        	this.emitCommit();
+        }        
 
-        //}
     }
 
     var obj_map_1 = {
@@ -88,12 +114,20 @@ function startUp(){
 	    		func: 'updateName',
 	    		locks: ['name']
 	    	},
-	    	updateInfoAgeMonth_lock_age_month:{
-	    		func: 'updateInfoAgeMonth',
+	    	updateInfoAgeMonth_each_lock_age_month:{
+	    		func: 'updateInfoAgeMonth_each',
 	    		locks: ['info.age','info.month']
 	    	},
-	    	updateInfoAgeMonth_lock_age:{
-	    		func: 'updateInfoAgeMonth',
+	    	updateInfoAgeMonth_group_lock_age_month:{
+	    		func: 'updateInfoAgeMonth_group',
+	    		locks: ['info.age','info.month']
+	    	},	    	
+	    	updateInfoAgeMonth_each_lock_age:{
+	    		func: 'updateInfoAgeMonth_each',
+	    		locks: ['info.age']
+	    	},
+	    	updateInfoAgeMonth_each_lock_age:{
+	    		func: 'updateInfoAgeMonth_group',
 	    		locks: ['info.age']
 	    	},
 
@@ -150,7 +184,7 @@ QUnit.test('Store single modifications',function(assert){
   	var mikeStore = StoreCreator('Mike0',init.obj_1);
  	
     emitterImpl.once('Mike0.updated',function(){   
-    	console.log('finish: addProject_get_set 1'); 	
+    	//console.log('finish: addProject_get_set 1'); 	
 	  	assert.deepEqual(
 	  		mikeStore.getState(),
 	  		$.extend(
@@ -217,7 +251,7 @@ QUnit.test('Store modifications',function(assert){
  	
    /* emitterImpl.once('Mike2.updated',function(){   */
    	expects.push(function(res){
-    	console.log('finish: addProject_get_set 1'); 	
+    	//console.log('finish: addProject_get_set 1'); 	
 	  	assert.deepEqual(
 	  		mikeStore.getState(),
 	  		$.extend(
@@ -263,7 +297,7 @@ QUnit.test('Store modifications',function(assert){
 
     /*emitterImpl.once('Mike2.updated',function(){     */
    	expects.push(function(res){
-    	console.log('finish: addProject_get_set 2'); 	
+    	//console.log('finish: addProject_get_set 2'); 	
 	  	assert.deepEqual(
 	  		mikeStore.getState(),
 	  		$.extend(
@@ -315,7 +349,7 @@ QUnit.test('Store modifications',function(assert){
   /*  emitterImpl.once('Mike2.updated',function(){  
   	 */
    	expects.push(function(res){
-    	console.log('finish: addProject_use')  	
+    	//console.log('finish: addProject_use')  	
 	  	assert.deepEqual(
 	  		mikeStore.getState(),
 	  		$.extend(
@@ -383,7 +417,7 @@ QUnit.test('Store modifications',function(assert){
 	
 	   /* emitterImpl.once('Mike2.updated',function(res){ */
    		expects.push(function(res){ 
-	    	console.log('finish: addProject with get set - multi params pass - chained',res); 
+	    	//console.log('finish: addProject with get set - multi params pass - chained',res); 
 		  	assert.deepEqual(
 		  		mikeStore.getState(),
 		  		$.extend(
@@ -605,7 +639,7 @@ QUnit.test('Store more modifications',function(assert){
 
   	//emitterImpl.once('Mike3.updated',function(res){ 
   	expects.push(function(res){
-    	console.log('finish: addProject with get set - multi params pass - chained',res); 
+    	//console.log('finish: addProject with get set - multi params pass - chained',res); 
 	  	assert.deepEqual(
 	  		mikeStore.getState(),
 	  		$.extend(
@@ -648,7 +682,7 @@ QUnit.test('Store more modifications',function(assert){
 
   	//emitterImpl.once('Mike3.done',function(result){ 
   	expects.push(function(result){
-		console.log('finish: addProject with get set - rollbacked',result); 
+		//console.log('finish: addProject with get set - rollbacked',result); 
 		assert.equal(result.status,'rollbacked','Catched Emited rollbacked');
 		dones[2]();
 
@@ -698,7 +732,7 @@ QUnit.test('Store more modifications',function(assert){
 
 	//emitterImpl.once('Mike3.addProject_setChanged.done',function(result){
 	expects.push(function(result){
-		console.log('finish: addProject_setChanged',result) 
+		//console.log('finish: addProject_setChanged',result) 
 		assert.equal(result.status,'updated','Catched Emited updated on specific event - FIXME the event must be "Mike3.addProject_setChanged.done", but it is Mike3.updated');
 		dones[4]();
 
@@ -852,7 +886,7 @@ QUnit.test('Store parallel modifications',function(assert){
 	
 
 	emitterImpl.on('Mike4.updated',function(res){		 
-    	console.log('finish: addProject with get set - multi params pass - chained - ',res); 
+    	//console.log('finish: addProject with get set - multi params pass - chained - ',res); 
     	var current_in = passed;
     	passed++;
 	  	assert.deepEqual(
@@ -1288,6 +1322,148 @@ QUnit.test('Store parallel 5 modifications',function(assert){
 	  		mikeStore.getState(),
 	  		expects[current_in],
 		    'addProject with get set - multi params pass - chained - '+current_in+' - if two normal emit after emit (same func) -> updated event comes FIFO  and "on" can be defined after emits'
+	  	)
+	  	dones[current_in+1]()
+	})
+
+})
+
+QUnit.test('Store modifications - locks 1 - single ',function(assert){	
+
+	var asynchCount = 1;
+	//prepare async
+	var dones = [];	
+	assert.expect(asynchCount);
+	for(var d=1; d<=asynchCount; d++){
+		dones[d] = assert.async()
+	}
+
+
+	var init = startUp();
+	//debugger;
+  	var mikeStore = StoreCreator('Mike9',init.obj_1);
+
+  	var passed = 0;
+
+	var expects = [
+		$.extend({
+  			_stateVersion: 1,
+  			name: 'mike',
+	        info: {
+	            age: 10,
+	            month: 'december',
+	            address: {
+	                city: 'Varna',
+	                street: 'slivnica',
+	                number: 1
+	            }
+	        },
+	        projects: [
+	            {   
+	                name: 'DataFlow',
+	                lang: ['php','js']
+	            },
+	            {
+	                name: 'Poll',
+	                lang: ['cake', 'php', 'js']
+	            }   
+	        ]		       
+		},init.obj_map_1),
+		
+	]
+	
+
+	
+  	
+
+	//debugger;
+	//setTimeout(function(){
+		emitterImpl.emit('Mike9.updateInfoAgeMonth_each_lock_age_month',10,'december')
+	//},0);
+
+	//setTimeout(function(){
+		//emitterImpl.emit('Mike9.addProject_multi_params','App2',['php'])
+	//},0);
+
+	emitterImpl.on('Mike9.updated',function(res){ 
+    	//console.log('finish: addProject with get set - multi params pass - chained - ',res); 
+    	var current_in = passed;
+    	passed++;
+	  	assert.deepEqual(
+	  		mikeStore.getState(),
+	  		expects[current_in],
+		    'lock 2 params and set them directly - '+current_in+' '
+	  	)
+	  	dones[current_in+1]()
+	})
+
+})
+
+
+QUnit.test('Store modifications - locks 2 - single ',function(assert){	
+
+	var asynchCount = 2;
+	//prepare async
+	var dones = [];	
+	assert.expect(asynchCount);
+	for(var d=1; d<=asynchCount; d++){
+		dones[d] = assert.async()
+	}
+
+
+	var init = startUp();
+	//debugger;
+  	var mikeStore = StoreCreator('Mike10',init.obj_1);
+
+  	var passed = 0;
+
+	var expects = [
+		$.extend({
+  			_stateVersion: 0,
+  			name: 'mike',
+	        info: {
+	            age: 27,
+	            month: 'january',
+	            address: {
+	                city: 'Varna',
+	                street: 'slivnica',
+	                number: 1
+	            }
+	        },
+	        projects: [
+	            {   
+	                name: 'DataFlow',
+	                lang: ['php','js']
+	            },
+	            {
+	                name: 'Poll',
+	                lang: ['cake', 'php', 'js']
+	            }   
+	        ]		       
+		},init.obj_map_1),
+		
+	]
+	  	
+
+	//debugger;
+	//setTimeout(function(){
+		emitterImpl.emit('Mike10.updateInfoAgeMonth_group_lock_age_month',10,'december')
+	//},0);
+
+	//setTimeout(function(){
+		//emitterImpl.emit('Mike10.addProject_multi_params','App2',['php'])
+	//},0);
+
+	emitterImpl.on('Mike10.done',function(result){ 
+		assert.equal(result.status,'rollbacked','Catched Emited rollbacked, because group set data, but inner locks');
+		dones[2]();
+    	//console.log('finish: addProject with get set - multi params pass - chained - ',res); 
+    	var current_in = passed;
+    	passed++;
+	  	assert.deepEqual(
+	  		mikeStore.getState(),
+	  		expects[current_in],
+		    'lock 2 params but update the parent -> need to be rollbacked- '+current_in+' '
 	  	)
 	  	dones[current_in+1]()
 	})

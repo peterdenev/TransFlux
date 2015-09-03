@@ -59,8 +59,10 @@ var TransactStore = function(store_prefix, model_data, funcs, origin_event) {
     }
 
     this.set = function(key_path, value){
-        //debugger;
+        debugger;
         //if(this.get(key_path)!==value){ // ref objects will be the same as new value, so always update
+        //set only reserved lock key_paths
+        if(isLocked(key_path, origin_event.func_locks, true)){
             if(ObjectHelper.checkNested(model_data,key_path)){               
                 if(ObjectHelper.setNested(model_data,key_path,value)){
                     _changes[key_path] = value
@@ -69,7 +71,10 @@ var TransactStore = function(store_prefix, model_data, funcs, origin_event) {
                 }
             }else{
                 console.warn('TransFlux', 'Someone try to set a value to not existing key path!',[key_path, value])
-            }               
+            }
+        }else{
+            throw 'TransFlux: Try to set a value to not self-locked key_path "'+key_path+'" from func "'+origin_event.func_name+'" ';
+        }
         //}
     },
 
@@ -238,6 +243,32 @@ function extractFuncAndData(obj){
     return result;
 }
 
+function isLocked(key_path, all_locks, isMyLocks){
+    isMyLocks = typeof isMyLocks != 'undefined' ? isMyLocks : false
+    //all_locks = typeof all_locks != 'undefined' ? all_locks : _locked;
+    //future: check for parent and child; add regex
+   
+    if(all_locks.length==0){ //no locks
+        return false;
+    }else if(all_locks.indexOf(key_path)!=-1){ //exact name found
+        return true;
+    }else if(all_locks.indexOf('*')!=-1){ //locked all
+        return true;
+    }else if(key_path=='*'){ //try to lock all
+        return true;
+    }else{
+        for(var i in all_locks){ //part of key_path contain in lock
+            if(!isMyLocks && all_locks[i].indexOf(key_path)===0){
+                return true
+            }
+            if(key_path.indexOf(all_locks[i])===0){
+                return true
+            }
+        }
+        return false
+    }      
+}
+
 var StoreCreator = function(store_prefix, data_object){   
     //debugger; 
     var _locked = [];
@@ -258,9 +289,11 @@ var StoreCreator = function(store_prefix, data_object){
                 func_name: func_name,
                 func_locks: func_locks,
                 args: args,
-                event: {
+                event: { //origin_event init
                     name: event_name,
-                    full_name: full_event_name
+                    full_name: full_event_name,
+                    func_name: func_name,
+                    func_locks: func_locks,
                 }
             })
             _tryEnqueue();
@@ -312,7 +345,7 @@ var StoreCreator = function(store_prefix, data_object){
             //check if all needed resources are not locked (free)
             var isAllAvailable = true;
             for(var i in job.func_locks){
-                if(isLocked(job.func_locks[i])){
+                if(isLocked(job.func_locks[i], _locked)){
                     isAllAvailable = false;
                     break;
                 }
@@ -405,21 +438,7 @@ var StoreCreator = function(store_prefix, data_object){
         console.warn('TransFlux','No actionsMap for store with prefix "'+store_prefix+'"')
     } 
 
-    function isLocked(key_path){
-        //future: check for parent and child; add regex
 
-       //exact name found
-        if(_locked.indexOf(key_path)!=-1){
-            return true;
-        }else{
-            for(var i in _locked){
-                if(_locked[i].indexOf(key_path)===0 || key_path.indexOf(_locked[i])===0){
-                    return true
-                }
-            }
-            return false
-        }      
-    } 
 
 
     return {
