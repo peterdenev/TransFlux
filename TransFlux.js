@@ -56,8 +56,7 @@
     }
 
     function isLocked(key_path, all_locks, isMyLocks){
-        isMyLocks = typeof isMyLocks != 'undefined' ? isMyLocks : false
-        //all_locks = typeof all_locks != 'undefined' ? all_locks : _locked;
+        isMyLocks = typeof isMyLocks != 'undefined' ? isMyLocks : false        
         //future: check for parent and child; add regex
        
         if(all_locks.length==0){ //no locks
@@ -118,7 +117,7 @@
         this.set = function(key_path, value){       
             //if(this.get(key_path)!==value){ // ref objects will be the same as new value, so always update
             //set only reserved lock key_paths
-            if(isLocked(key_path, origin_event.func_locks, true)){
+            if(isLocked(key_path, origin_event.func_data.locks, true)){
                 if(ObjectHelper.checkNested(model_data,key_path)){               
                     if(ObjectHelper.setNested(model_data,key_path,value)){
                         _changes[key_path] = value
@@ -129,7 +128,7 @@
                     console.warn('TransFlux', 'Someone try to set a value to not existing key path!',[key_path, value])
                 }
             }else{
-                throw 'TransFlux: Try to set a value to not self-locked key_path "'+key_path+'" from func "'+origin_event.func_name+'" ';
+                throw 'TransFlux: Try to set a value to not self-locked key_path "'+key_path+'" from func "'+origin_event.func_data.func+'" ';
             }
             //}
         },
@@ -265,37 +264,29 @@
         var _stateMngr = StateManager(store_prefix, _splitData.data);   
 
         function _getActionData(event_name){
-            var func_data = _splitData.data.actionsMap[event_name];
-            var func_name = func_data
-            var func_locks = ['*']
-            if(typeof func_data == 'object'){
-                if(func_data.hasOwnProperty('func')){
-                    func_name = func_data.func;
-                }
-                if (func_data.hasOwnProperty('locks')){
-                    func_locks = func_data.locks
-                }
+            var found_func_data = _splitData.data.actionsMap[event_name];
+            if(typeof found_func_data == 'string'){
+                found_func_data = {func: found_func_data}
             }
-            return {
-                func_name: func_name,
-                func_locks: func_locks
-            }
+            var def_func_data = {           
+                func : '_NOT_DEFINED_',
+                locks : ['*'],
+                onMultiCall : 'queue',
+            }            
+            return ObjectHelper.mergeOptions(def_func_data, found_func_data)
         }
 
         //add to queue
-        function _mapOn(event_name, func_name, func_locks){  
+        function _mapOn(event_name, func_data){  
             var full_event_name = store_prefix+_cfg.evSep+event_name;     
             emitterImpl.on(full_event_name,function(){             
                 var args = Array.prototype.slice.call(arguments);   
-                _execQueue.push({
-                    func_name: func_name,
-                    func_locks: func_locks,
+                _execQueue.push({                                     
                     args: args,
                     event: { //origin_event init
                         name: event_name,
                         full_name: full_event_name,
-                        func_name: func_name,
-                        func_locks: func_locks,
+                        func_data: func_data,                       
                     }
                 })
                 _tryEnqueue();
@@ -307,15 +298,16 @@
                 var job = _execQueue[j];
                 //check if all needed resources are not locked (free)
                 var isAllAvailable = true;
-                for(var i in job.func_locks){
-                    if(isLocked(job.func_locks[i], _locked)){
+                for(var i in job.event.func_data.locks){
+                    if(isLocked(job.event.func_data.locks[i], _locked)){
                         isAllAvailable = false;
                         break;
                     }
                 }
-                if(isAllAvailable){   
+                if(isAllAvailable){
+                    //if(job)   
                     //lock resources
-                    _locked = _locked.concat(job.func_locks)
+                    _locked = _locked.concat(job.event.func_data.locks)
                     //remove from queue         
                     _execQueue.splice(j, 1);
                     j--; //fix to get correct next
@@ -328,28 +320,29 @@
 
         function _asyncExec(job){
             setTimeout(function(){
-                _execTransact(job.func_name ,job.args, job.event, job.func_locks);
+                //_execTransact(job.event.func_data.func_name ,job.args, job.event, job.event.func_data.func_locks);
+                _execTransact(job);
             },0);
         }
 
-        function _execTransact(func_name, args, origin_event, func_locks){        
+        //function _execTransact(func_name, args, origin_event, func_locks){        
+        function _execTransact(job){        
             //begin new trnsaction
             //make an instance with last stable data and all functions       
-            var transactState = new TransactStore(store_prefix, _stateMngr.getLastStableState(), _splitData.funcs, origin_event);        
+            var transactState = new TransactStore(store_prefix, _stateMngr.getLastStableState(), _splitData.funcs, job.event);        
             try{
-                transactState[func_name].apply(transactState,args);
+                transactState[job.event.func_data.func].apply(transactState, job.args);
             }catch(err){
-                console.error('TransFlux','Action exception in function "'+func_name+'"',err);
+                console.error('TransFlux','Action exception in function "'+job.event.func_data.func+'"',err);
                 transactState.emitRollback(err);
             } 
         }
 
         function _enqueue(emit_data){     
             //console.log('_Enqueue');         
-            //remove locks 
-            var func_data = _getActionData(emit_data.origin_event.name)
-            for(var i in func_data.func_locks){
-                var lock_index = _locked.indexOf(func_data.func_locks[i])
+            //remove locks            
+            for(var i in emit_data.origin_event.func_data.locks){
+                var lock_index = _locked.indexOf(emit_data.origin_event.func_data.locks[i])
                 if(lock_index!=-1){
                     _locked.splice(lock_index,1);
                 }
@@ -364,10 +357,10 @@
         if(_splitData.data.hasOwnProperty('actionsMap')){
             for(var event_name in _splitData.data.actionsMap){
                 var func_data = _getActionData(event_name);            
-                if(_splitData.funcs.hasOwnProperty(func_data.func_name)){                
-                    _mapOn(event_name, func_data.func_name, func_data.func_locks);
+                if(_splitData.funcs.hasOwnProperty(func_data.func)){                
+                    _mapOn(event_name, func_data);
                 }else{
-                    console.warn('TransFlux', 'Action method "'+func_data.func_name+'" not found for store "'+store_prefix+'"')
+                    console.warn('TransFlux', 'Action method "'+func_data.func+'" not found for store "'+store_prefix+'"')
                 }  
             }
         }else{

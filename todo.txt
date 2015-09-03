@@ -7,6 +7,8 @@ Future:
 - what if one function with some lock call another function with other locks (hint: add actionMap.use=['otherFunc',...])
 - implement promises
 - set lock/stop/wait on same action (hint: actionsMap.lock_type={same:renew/, other:wait})(or multi_call_prio:last/fist/only_last/only_first)
+	onMultiCall: first/last/queue
+- split actionMap and function options (lock,use,[onMulticall])
 
 
 README:
