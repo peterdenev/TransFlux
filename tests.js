@@ -1,3 +1,4 @@
+var StoreCreator = TransFlux.StoreCreator;
 
 function startUp(){
 
