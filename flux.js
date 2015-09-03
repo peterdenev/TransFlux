@@ -47,7 +47,7 @@ function _tryEnqueueShell(cb){
     return _tryEnQ;
 }
 
-var TransactStore = function(store_prefix, model_data, funcs, origin_event_name) {
+var TransactStore = function(store_prefix, model_data, funcs, origin_event) {
     for(var i in funcs){
         this[i] = funcs[i]; 
     }
@@ -96,18 +96,18 @@ var TransactStore = function(store_prefix, model_data, funcs, origin_event_name)
     }*/
 
     this.emitCommit = function(){
-        var emit_data = {changes: _changes, origin_event_name: origin_event_name};
+        var emit_data = {changes: _changes, origin_event: origin_event};
         emitterImpl.emit(store_prefix+_evSep+'commit', emit_data)
-        emitterImpl.emit(origin_event_name+_evSep+'commit', emit_data)       
+        emitterImpl.emit(origin_event.full_name+_evSep+'commit', emit_data)       
         //self._changes = {};
     }       
     this.emitRollback = function(reason){      
-        var emit_data = {/*changes: _changes,*/ reason: reason, origin_event_name: origin_event_name, status:'rollbacked'}
+        var emit_data = {/*changes: _changes,*/ reason: reason, origin_event: origin_event, status:'rollbacked'}
         emitterImpl.emitToMany([            
             store_prefix+_evSep+'done',
             store_prefix+_evSep+'rollbacked',
-            origin_event_name+_evSep+'done',
-            origin_event_name+_evSep+'rollbacked',
+            origin_event.full_name+_evSep+'done',
+            origin_event.full_name+_evSep+'rollbacked',
             store_prefix+_evSep+'_readyForNext',
         ],emit_data)
         //self._changes = {};
@@ -199,14 +199,14 @@ var StateManager = function(store_prefix, onlyData){
             state: getReadOnlyState(), 
             changes: data.changes, 
             status:'updated', 
-            origin_event_name: data.origin_event_name
+            origin_event: data.origin_event
         }; 
         emitterImpl.emitToMany([
             //store_prefix+'_readyForNext',
             store_prefix+_evSep+'done',
             store_prefix+_evSep+'updated',
-            data.origin_event_name+_evSep+'done',
-            data.origin_event_name+_evSep+'updated',
+            data.origin_event.full_name+_evSep+'done',
+            data.origin_event.full_name+_evSep+'updated',
             store_prefix+_evSep+'_readyForNext',
         ],emit_data)
     }
@@ -250,15 +250,17 @@ var StoreCreator = function(store_prefix, data_object){
     var stateMngr = StateManager(store_prefix, splitData.data);   
 
     //add to queue
-    function _mapOn(event_name, func_name, func_locks){       
-        emitterImpl.on(event_name,function(){             
+    function _mapOn(event_name, func_name, func_locks){  
+        var full_event_name = store_prefix+_evSep+event_name;     
+        emitterImpl.on(full_event_name,function(){             
             var args = Array.prototype.slice.call(arguments);   
             _execQueue.push({
                 func_name: func_name,
                 func_locks: func_locks,
                 args: args,
                 event: {
-                    name: event_name
+                    name: event_name,
+                    full_name: full_event_name
                 }
             })
             _tryEnqueue();
@@ -333,15 +335,27 @@ var StoreCreator = function(store_prefix, data_object){
 
     function _asyncExec(job){
         setTimeout(function(){
-            _execTransact(job.func_name ,job.args, job.event.name, job.func_locks);
+            _execTransact(job.func_name ,job.args, job.event, job.func_locks);
         },0);
+    }
+
+    function _execTransact(func_name, args, origin_event, func_locks){
+        //hint may need to be in custom namespace with params //FIXME
+        //begin new trnsaction
+        //make an instance with last stable data and all functions       
+        var transactState = new TransactStore(store_prefix, stateMngr.getLastStableState(), splitData.funcs, origin_event);        
+        try{
+            transactState[func_name].apply(transactState,args);
+        }catch(err){
+            console.error('TransFlux','Action exception in function "'+func_name+'"',err);
+            transactState.emitRollback(err);
+        } 
     }
 
     function _enqueue(emit_data){     
         //console.log('_Enqueue');         
-        //remove locks  
-        var event_name = emit_data.origin_event_name.substr( (store_prefix+_evSep).length )
-        var func_data = getActionData(event_name)
+        //remove locks 
+        var func_data = getActionData(emit_data.origin_event.name)
         for(var i in func_data.func_locks){
             var lock_index = _locked.indexOf(func_data.func_locks[i])
             if(lock_index!=-1){
@@ -350,19 +364,6 @@ var StoreCreator = function(store_prefix, data_object){
         }
         _tryEnqueue();
         //console.error('_enqueue force - need to be implemented')
-    }
-
-    function _execTransact(func_name, args, origin_event_name, func_locks){
-        //hint may need to be in custom namespace with params //FIXME
-        //begin new trnsaction
-        //make an instance with last stable data and all functions       
-        var transactState = new TransactStore(store_prefix, stateMngr.getLastStableState(), splitData.funcs, origin_event_name);        
-        try{
-            transactState[func_name].apply(transactState,args);
-        }catch(err){
-            console.error('TransFlux','Action exception in function "'+func_name+'"',err);
-            transactState.emitRollback(err);
-        } 
     }
 
     //emitterImpl.on(store_prefix+'updated', _enqueue);
@@ -395,7 +396,7 @@ var StoreCreator = function(store_prefix, data_object){
         for(var event_name in splitData.data.actionsMap){
             var func_data = getActionData(event_name);            
             if(splitData.funcs.hasOwnProperty(func_data.func_name)){                
-                _mapOn(store_prefix+_evSep+event_name, func_data.func_name, func_data.func_locks);
+                _mapOn(event_name, func_data.func_name, func_data.func_locks);
             }else{
                 console.warn('TransFlux', 'Action method "'+func_data.func_name+'" not found for store "'+store_prefix+'"')
             }  

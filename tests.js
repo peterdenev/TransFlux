@@ -59,7 +59,10 @@ function startUp(){
         		lang: langs
         	}
         	this.addProjectGetSet(proj);
-        }
+        },
+        //updateInfo: function(){
+
+        //}
     }
 
     var obj_map_1 = {
@@ -69,7 +72,7 @@ function startUp(){
 	    	addProject_setChanged: 'addProjectSetChanged',	    	
 	    	addProject_rollback: 'addProjectRollback',
 	    	addProject_multi_params: 'addProjectMultiParams',
-	    	/*updateInfo_lock_info: {
+	    	updateInfo_lock_info: {
 	    		func: 'updateInfo',
 	    		locks: ['info']
 	    	},
@@ -92,7 +95,7 @@ function startUp(){
 	    	updateInfoAgeMonth_lock_age:{
 	    		func: 'updateInfoAgeMonth',
 	    		locks: ['info.age']
-	    	},*/
+	    	},
 
 	    },	    
 	}

@@ -1,10 +1,11 @@
 Future:
 - optimize _changes array
-- implement locking with keys (with regex)
+- implement locking with keys with regex
 - what about ajax?
 - in action functions check if someone try to "set" to not self locked resource
-- StateManager wait for commit must be synch
+- [DONE] StateManager wait for commit must be synch
 - what if one function with some lock call another function with other locks
+- implement promises
 
 tofix:
 - Nacepin added two times
