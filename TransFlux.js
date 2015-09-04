@@ -453,12 +453,28 @@
         }
     }
 
+    function createActions(storeInst, mapping){
+        var actionsArr = [];
+        for(var action in mapping){
+            var aMap = mapping[action];
+            if(typeof aMap != 'function'){
+                if(typeof aMap == 'string'){
+                    aMap = [aMap]
+                } 
+                actionsArr[action] = createAction.apply(createAction, [storeInst].concat(aMap))
+            }
+        }
+        return actionsArr;
+    }
+
 
     return {
         options: _cfg,
         createStore: createStore,
         emitter: emitterImpl,
-        createAction: createAction        
+        createAction: createAction,
+        createActions: createActions,
+
     }
 
 
