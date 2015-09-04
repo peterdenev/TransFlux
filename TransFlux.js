@@ -257,7 +257,8 @@
 
     var createStore = function(store_prefix, data_object){   
         var _locked = [];
-        var _execQueue = [];   
+        var _execQueue = [];
+        var _runningQueue = [];   
 
         var _splitData = extractFuncAndData(data_object);
 
@@ -280,15 +281,27 @@
         function _mapOn(event_name, func_data){  
             var full_event_name = store_prefix+_cfg.evSep+event_name;     
             emitterImpl.on(full_event_name,function(){             
-                var args = Array.prototype.slice.call(arguments);   
-                _execQueue.push({                                     
-                    args: args,
-                    event: { //origin_event init
-                        name: event_name,
-                        full_name: full_event_name,
-                        func_data: func_data,                       
+                var args = Array.prototype.slice.call(arguments);
+                var needToQueue = true;               
+                //if need only first and it's now running - add nothing to queue
+                if(func_data.onMultiCall=='first'){   
+                    for(var ri in _runningQueue){
+                        if(_runningQueue[ri].event.name==event_name){
+                            needToQueue = false;
+                            break;
+                        }
                     }
-                })
+                }
+                if(needToQueue){
+                    _execQueue.push({                                     
+                        args: args,
+                        event: { //origin_event init
+                            name: event_name,
+                            full_name: full_event_name,
+                            func_data: func_data,                       
+                        }
+                    })
+                }
                 _tryEnqueue();
             });        
         }   
@@ -341,9 +354,11 @@
         })
 
         function _asyncExec(job){
+            _runningQueue.push(job)
             setTimeout(function(){                
                 _execTransact(job);
             },0);
+            emitterImpl.emit(job.event.full_name+_cfg.evSep+'started', job);
         }
               
         function _execTransact(job){        
@@ -367,8 +382,15 @@
                     _locked.splice(lock_index,1);
                 }
             }
+            //remove from running queue
+            for(var ri in _runningQueue){
+                if(_runningQueue[ri].event.name==emit_data.origin_event.name){
+                    _runningQueue.splice(ri,1);
+                    break;
+                }
+            }
             _tryEnqueue();
-            //console.error('_enqueue force - need to be implemented')
+            //emitterImpl.emit(emit_data.origin_event.full_name+_cfg.evSep+'finished', job);
         }
 
         emitterImpl.on(store_prefix+_cfg.evSep+'_readyForNext', _enqueue);       
@@ -396,11 +418,47 @@
         };
     }
 
+    // ACTION HELPER
+    
+    function createAction(storeInst, event_name, exec_func){    
+        if(typeof exec_func != 'function'){
+            return _createSimpleAction(storeInst, event_name)
+        }
+        return {
+            on: function(status, cb){
+                return _emitterWrap('on', storeInst, event_name, status, cb)                 
+            },
+            once: function(status, cb){
+                return _emitterWrap('once', storeInst, event_name, status, cb)
+            },          
+            exec: exec_func
+        }
+    }
+
+    function _createSimpleAction(storeInst, event_name){
+        var exec = function(){          
+            var args = Array.prototype.slice.call(arguments);           
+            storeInst.emitter.emit.apply(storeInst.emitter.emit, [
+                storeInst.prefix+ storeInst.options.evSep+ event_name
+            ].concat(args));
+        }
+        return createAction(storeInst, event_name, exec)
+    }
+
+    function _emitterWrap(type, storeInst, event_name, status, cb){
+        storeInst.emitter[type](storeInst.prefix + storeInst.options.evSep + event_name + storeInst.options.evSep + status, cb)
+        return {
+            on: _emitterWrap.bind(this,'on', storeInst, event_name),
+            once: _emitterWrap.bind(this,'once', storeInst, event_name)
+        }
+    }
+
 
     return {
         options: _cfg,
         createStore: createStore,
-        emitter: emitterImpl
+        emitter: emitterImpl,
+        createAction: createAction        
     }
 
 
