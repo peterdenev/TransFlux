@@ -293,7 +293,7 @@
             });        
         }   
 
-        var _tryEnqueue = _tryEnqueueShell(function(){
+        var _tryEnqueue = _tryEnqueueShell(function(){           
             for(var j=0; j<_execQueue.length; j++){
                 var job = _execQueue[j];
                 //check if all needed resources are not locked (free)
@@ -304,7 +304,7 @@
                         break;
                     }
                 }
-                if(isAllAvailable){
+                if(isAllAvailable){                   
                     //find all event with same name like available job
                     var same_jobs_indexes = [];
                     for(var _i in _execQueue) {
@@ -315,7 +315,7 @@
 
                     if(job.event.func_data.onMultiCall=='last'){
                         //change job to last found
-                        job = _execQueue[ same_jobs_indexes[same_jobs.length-1] ];
+                        job = _execQueue[ same_jobs_indexes[same_jobs_indexes.length-1] ];
                     }
 
                     //lock resources
@@ -323,8 +323,8 @@
 
                     if(['first','last'].indexOf(job.event.func_data.onMultiCall)!=-1){
                         //todo: //remove all
-                        for(var ji in same_jobs_indexes){
-                            _execQueue.splice(ji, 1);
+                        for(var ji=same_jobs_indexes.length-1; ji>=0; ji--){
+                            _execQueue.splice(same_jobs_indexes[ji], 1);
                         }
                     }else{ //remove only current
                         //remove from queue         
