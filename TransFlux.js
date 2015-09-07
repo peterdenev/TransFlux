@@ -26,7 +26,8 @@
     setEmitToMany();    
 
     var _cfg = {
-        evSep : '.'
+        evSep : '.',
+        async: true, //if true: (asynch emits; locks logic - on; onMultiCall logic - on)
     }
    
     function setEmitToMany(){
@@ -56,9 +57,13 @@
     }
 
     function isLocked(key_path, all_locks, isMyLocks){
-        isMyLocks = typeof isMyLocks != 'undefined' ? isMyLocks : false        
+        isMyLocks = typeof isMyLocks != 'undefined' ? isMyLocks : false
         //future: check for parent and child; add regex
        
+        if(!_cfg.async && all_locks.length>0){           
+            all_locks = ['*'] //fake like all is locked (if not async)
+        }
+
         if(all_locks.length==0){ //no locks
             return false;
         }else if(all_locks.indexOf(key_path)!=-1){ //exact name found
@@ -118,7 +123,7 @@
             //if(this.get(key_path)!==value){ // ref objects will be the same as new value, so always update
             //set only reserved lock key_paths
             if(isLocked(key_path, origin_event.func_data.locks, true)){
-                if(ObjectHelper.checkNested(model_data,key_path)){               
+                if(ObjectHelper.checkNested(model_data,key_path)){
                     if(ObjectHelper.setNested(model_data,key_path,value)){
                         _changes[key_path] = value
                     }else{
@@ -134,13 +139,13 @@
         },
 
         //experimental (not tested)
-        this.setChanged = function(key_path){        
+        this.setChanged = function(key_path){
             if(ObjectHelper.checkNested(model_data,key_path)){
                 var updated_obj = ObjectHelper.getNested(model_data,key_path);
                 if(typeof updated_obj != 'object'){
                     console.warn('TransFlux', 'Use setChanged only for array or object, or use "set" insted!')
                 }
-                _changes[key_path] = updated_obj;                     
+                _changes[key_path] = updated_obj;
             }else{
                 console.warn('TransFlux', 'Someone try to setChange to not existing key path!',key_path)
             }  
@@ -154,12 +159,12 @@
         this.emitCommit = function(){
             var emit_data = {changes: _changes, origin_event: origin_event};
             emitterImpl.emit(store_prefix+_cfg.evSep+'commit', emit_data)
-            emitterImpl.emit(origin_event.full_name+_cfg.evSep+'commit', emit_data)       
+            emitterImpl.emit(origin_event.full_name+_cfg.evSep+'commit', emit_data)
             //self._changes = {};
         }       
-        this.emitRollback = function(reason){      
+        this.emitRollback = function(reason){
             var emit_data = {/*changes: _changes,*/ reason: reason, origin_event: origin_event, status:'rollbacked'}
-            emitterImpl.emitToMany([            
+            emitterImpl.emitToMany([
                 store_prefix+_cfg.evSep+'done',
                 store_prefix+_cfg.evSep+'rollbacked',
                 origin_event.full_name+_cfg.evSep+'done',
@@ -181,10 +186,10 @@
 
         //readonly last state export 
         var _lastStableState = null;
-        var _lastStableState_readOnly = null; 
+        var _lastStableState_readOnly = null;
         
 
-        var _getReadOnlyState = function(){        
+        var _getReadOnlyState = function(){
             return _lastStableState_readOnly;
         }
 
@@ -200,7 +205,7 @@
 
         var _commitQueue = [];
        
-        emitterImpl.on(store_prefix+_cfg.evSep+'commit',function(data){    
+        emitterImpl.on(store_prefix+_cfg.evSep+'commit',function(data){
             _commitQueue.push({
                 data: data,
                 event: {
@@ -212,19 +217,19 @@
         })
 
         var _tryEnqueue = _tryEnqueueShell(function(){
-            for(var j=0; j<_commitQueue.length; j++){            
+            for(var j=0; j<_commitQueue.length; j++){
                 _onCommit(_commitQueue[j].data);  
                 //enqueue
                 _commitQueue.splice(j, 1);
-                j--; //fix to get correct next             
+                j--; //fix to get correct next
             }
         })
 
-        function _onCommit(data){       
+        function _onCommit(data){
             //set changes to this
             for(var key_path in data.changes){
                 ObjectHelper.setNested(_data, key_path, data.changes[key_path])//is it enought or it is a ref?                             
-            }       
+            }
             //remake states
             _makeState();
             //notify others for finished update (for unlock and enqueue)
@@ -255,21 +260,21 @@
         }
     }
 
-    var createStore = function(store_prefix, data_object){   
+    var createStore = function(store_prefix, data_object){
         var _locked = [];
         var _execQueue = [];
         var _runningQueue = [];   
 
         var _splitData = extractFuncAndData(data_object);
 
-        var _stateMngr = StateManager(store_prefix, _splitData.data);   
+        var _stateMngr = StateManager(store_prefix, _splitData.data);
 
         function _getActionData(event_name){
             var found_func_data = _splitData.data.actionsMap[event_name];
             if(typeof found_func_data == 'string'){
                 found_func_data = {func: found_func_data}
             }
-            var def_func_data = {           
+            var def_func_data = { 
                 func : '_NOT_DEFINED_',
                 locks : ['*'],
                 onMultiCall : 'queue',
@@ -279,12 +284,12 @@
 
         //add to queue
         function _mapOn(event_name, func_data){  
-            var full_event_name = store_prefix+_cfg.evSep+event_name;     
-            emitterImpl.on(full_event_name,function(){             
+            var full_event_name = store_prefix+_cfg.evSep+event_name;
+            emitterImpl.on(full_event_name,function(){
                 var args = Array.prototype.slice.call(arguments);
-                var needToQueue = true;               
-                //if need only first and it's now running - add nothing to queue
-                if(func_data.onMultiCall=='first'){   
+                var needToQueue = true;
+                //if need only first and it's now running - add nothing to queue               
+                if(func_data.onMultiCall=='first' && _cfg.async){
                     for(var ri in _runningQueue){
                         if(_runningQueue[ri].event.name==event_name){
                             needToQueue = false;
@@ -293,20 +298,20 @@
                     }
                 }
                 if(needToQueue){
-                    _execQueue.push({                                     
+                    _execQueue.push({
                         args: args,
                         event: { //origin_event init
                             name: event_name,
                             full_name: full_event_name,
-                            func_data: func_data,                       
+                            func_data: func_data,
                         }
                     })
                 }
                 _tryEnqueue();
-            });        
+            });
         }   
 
-        var _tryEnqueue = _tryEnqueueShell(function(){           
+        var _tryEnqueue = _tryEnqueueShell(function(){
             for(var j=0; j<_execQueue.length; j++){
                 var job = _execQueue[j];
                 //check if all needed resources are not locked (free)
@@ -317,16 +322,16 @@
                         break;
                     }
                 }
-                if(isAllAvailable){                   
+                if(isAllAvailable){
                     //find all event with same name like available job
                     var same_jobs_indexes = [];
                     for(var _i in _execQueue) {
                         if(_execQueue[_i].event.name === job.event.name) {
-                            same_jobs_indexes.push(_i);   
+                            same_jobs_indexes.push(_i);
                         }
                     }
 
-                    if(job.event.func_data.onMultiCall=='last'){
+                    if(job.event.func_data.onMultiCall=='last' && _cfg.async){
                         //change job to last found
                         job = _execQueue[ same_jobs_indexes[same_jobs_indexes.length-1] ];
                     }
@@ -334,20 +339,24 @@
                     //lock resources
                     _locked = _locked.concat(job.event.func_data.locks)
 
-                    if(['first','last'].indexOf(job.event.func_data.onMultiCall)!=-1){
+                    if(['first','last'].indexOf(job.event.func_data.onMultiCall)!=-1 && _cfg.async){
                         //todo: //remove all
                         for(var ji=same_jobs_indexes.length-1; ji>=0; ji--){
                             _execQueue.splice(same_jobs_indexes[ji], 1);
                         }
                     }else{ //remove only current
                         //remove from queue         
-                        _execQueue.splice(j, 1);                        
+                        _execQueue.splice(j, 1);
                     }
                     j--; //fix to get correct next
                    
                     
-                    //exec in parallel
-                    _asyncExec(job);              
+                    if(_cfg.async){
+                        //exec in parallel
+                        _asyncExec(job);
+                    }else{
+                        _synchExec(job);
+                    }
                     //check for next waiting
                 }
             }
@@ -355,16 +364,22 @@
 
         function _asyncExec(job){
             _runningQueue.push(job)
-            setTimeout(function(){                
+            setTimeout(function(){
                 _execTransact(job);
             },0);
             emitterImpl.emit(job.event.full_name+_cfg.evSep+'started', job);
         }
+
+        function _synchExec(job){
+            _runningQueue.push(job)
+            emitterImpl.emit(job.event.full_name+_cfg.evSep+'started', job);
+            _execTransact(job);
+        }
               
-        function _execTransact(job){        
+        function _execTransact(job){
             //begin new trnsaction
             //make an instance with last stable data and all functions       
-            var transactState = new TransactStore(store_prefix, _stateMngr.getLastStableState(), _splitData.funcs, job.event);        
+            var transactState = new TransactStore(store_prefix, _stateMngr.getLastStableState(), _splitData.funcs, job.event);
             try{
                 transactState[job.event.func_data.func].apply(transactState, job.args);
             }catch(err){
@@ -373,9 +388,9 @@
             } 
         }
 
-        function _enqueue(emit_data){     
-            //console.log('_Enqueue');         
-            //remove locks            
+        function _enqueue(emit_data){
+            //console.log('_Enqueue');
+            //remove locks
             for(var i in emit_data.origin_event.func_data.locks){
                 var lock_index = _locked.indexOf(emit_data.origin_event.func_data.locks[i])
                 if(lock_index!=-1){
@@ -393,13 +408,13 @@
             //emitterImpl.emit(emit_data.origin_event.full_name+_cfg.evSep+'finished', job);
         }
 
-        emitterImpl.on(store_prefix+_cfg.evSep+'_readyForNext', _enqueue);       
+        emitterImpl.on(store_prefix+_cfg.evSep+'_readyForNext', _enqueue);
 
         //subscribe store actions (wait for transaction trigger)
         if(_splitData.data.hasOwnProperty('actionsMap')){
             for(var event_name in _splitData.data.actionsMap){
-                var func_data = _getActionData(event_name);            
-                if(_splitData.funcs.hasOwnProperty(func_data.func)){                
+                var func_data = _getActionData(event_name);
+                if(_splitData.funcs.hasOwnProperty(func_data.func)){
                     _mapOn(event_name, func_data);
                 }else{
                     console.warn('TransFlux', 'Action method "'+func_data.func+'" not found for store "'+store_prefix+'"')
@@ -420,24 +435,24 @@
 
     // ACTION HELPER
     
-    function createAction(storeInst, event_name, exec_func){    
+    function createAction(storeInst, event_name, exec_func){
         if(typeof exec_func != 'function'){
             return _createSimpleAction(storeInst, event_name)
         }
         return {
             on: function(status, cb){
-                return _emitterWrap('on', storeInst, event_name, status, cb)                 
+                return _emitterWrap('on', storeInst, event_name, status, cb)
             },
             once: function(status, cb){
                 return _emitterWrap('once', storeInst, event_name, status, cb)
-            },          
+            },
             exec: exec_func
         }
     }
 
     function _createSimpleAction(storeInst, event_name){
         var exec = function(){          
-            var args = Array.prototype.slice.call(arguments);           
+            var args = Array.prototype.slice.call(arguments);
             storeInst.emitter.emit.apply(storeInst.emitter.emit, [
                 storeInst.prefix+ storeInst.options.evSep+ event_name
             ].concat(args));

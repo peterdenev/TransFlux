@@ -1467,4 +1467,6 @@ QUnit.test('Store modifications - locks 2 - single ',function(assert){
 	  	dones[current_in+1]()
 	})
 
+	console.info('Next exception is expected :)');
+
 })

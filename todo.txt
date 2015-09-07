@@ -4,12 +4,17 @@ Future:
 - what about ajax?
 - [DONE] in action functions check if someone try to "set" to not self locked resource
 - [DONE] StateManager wait for commit must be synch
-- what if one function with some lock call another function with other locks (hint: add actionMap.use=['otherFunc',...])
+- [1]what if one function with some lock call another function with other locks (hint: add actionMap.use=['otherFunc',...])
 - implement promises
 - [DONE] set lock/stop/wait on same action (hint: actionsMap.lock_type={same:renew/, other:wait})(or multi_call_prio:last/fist/only_last/only_first)
 	onMultiCall: first/last/queue
 - split actionMap and function options (lock,use,[onMulticall])
 - stop(abort) running ajax if onMultiCall='last' and it's now runnign and try to tun again
+- [2]mixins 
+- readme
+- real example
+- getState to accept what to export
+- ractive helper to update specific fields from state
 
 
 README:
