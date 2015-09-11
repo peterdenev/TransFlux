@@ -30,63 +30,63 @@ function startUp(){
         	var projs = this.get('projects');
         	projs.push(proj);
         	this.set('projects',projs);
-        	this.emitCommit();        	
+        	return true        	
         },
         addProjectUse: function(proj){
         	this.use('projects',function(projs){
         		projs.push(proj);
         		return projs;
         	})
-        	this.emitCommit();
+        	return true
         },
         addProjectSetChanged: function(proj){
         	//debugger;
         	var projs = this.get('projects');
         	projs.push(proj);
         	this.setChanged('projects');
-        	this.emitCommit(); 
+        	return true 
         },        
         addProjectRollback: function(proj){
         	//debugger;
         	var projs = this.get('projects');
         	projs.push(proj);
         	this.set('projects',projs);
-        	this.emitRollback(); 
+        	return false; 
         },
-        addProjectMultiParams: function(name, langs){
+        addProjectMultiParams: function(name, langs){        	
         	var proj = {
         		name: name,
         		lang: langs
         	}
-        	this.addProjectGetSet(proj);
+        	return this.addProjectGetSet(proj);
         },
         updateInfo: function(info){
         	this.set('info',info);
-        	this.emitCommit();
+        	return true
         },
         updateInfoAge: function(age){
         	this.set('info.age',age);
-        	this.emitCommit();
+        	return true
         },
         updateInfoMonth: function(month){
         	this.set('info.month',month);
-        	this.emitCommit();
+        	return true
         },
         updateName: function(name){
         	this.set('name',name);
-        	this.emitCommit();
+        	return true
         },
         updateInfoAgeMonth_each: function(age, month){
         	this.set('info.age',age);
         	this.set('info.month',month);
-        	this.emitCommit();
+        	return true
         },
         updateInfoAgeMonth_group: function(age, month){
         	var t_info = this.get('info');
         	t_info.age = age;
         	t_info.month = month;
         	this.set('info',t_info);        	
-        	this.emitCommit();
+        	return true
         }        
 
     }
@@ -336,70 +336,14 @@ QUnit.test('Store modifications',function(assert){
 
     //test 3
 
-  /*  emitterImpl.once('Mike2.updated',function(){  
-  	 */
-   	expects.push(function(res){
-    	//console.log('finish: addProject_use')  	
-	  	assert.deepEqual(
-	  		mikeStore.getState(),
-	  		$.extend(
-	  		{
-	  			_stateVersion: 3,
-	  			name: 'mike',
-		        info: {
-		            age: 27,
-		            month: 'january',
-		            address: {
-		                city: 'Varna',
-		                street: 'slivnica',
-		                number: 1
-		            }
-		        },
-		        projects: [
-		            {   
-		                name: 'DataFlow',
-		                lang: ['php','js']
-		            },
-		            {
-		                name: 'Poll',
-		                lang: ['cake', 'php', 'js']
-		            },
-		            {   
-			            name: 'TransFlux',
-			            lang: ['js']
-			        },
-			        {
-			        	name: 'SuperCoolProj',
-            			lang: ['brainfuck']
-			        },
-			        {
-			        	name: 'SinglePageApp',
-            			lang: ['javascript']
-				    }
-		        ]		       
-		    },init.obj_map_1),
-		    'addProject with "use"'
-	  	)
-	  	dones[3]()
-	})
-
-	
-
-	
-
-	//test 5+
-
-	//wait last to end to start new test
-	
-	
-	   /* emitterImpl.once('Mike2.updated',function(res){ */
+    /* emitterImpl.once('Mike2.updated',function(res){ */
    		expects.push(function(res){ 
 	    	//console.log('finish: addProject with get set - multi params pass - chained',res); 
 		  	assert.deepEqual(
 		  		mikeStore.getState(),
 		  		$.extend(
 		  		{
-		  			_stateVersion: 4,
+		  			_stateVersion: 3,
 		  			name: 'mike',
 			        info: {
 			            age: 27,
@@ -430,10 +374,6 @@ QUnit.test('Store modifications',function(assert){
 				        {
 				        	name: 'SinglePageApp',
 	            			lang: ['javascript']
-				        },	
-				        {
-				        	name: 'Nacepin',
-	            			lang: ['none']
 				        }				        
 			        ]		       
 			    },init.obj_map_1),
@@ -441,6 +381,68 @@ QUnit.test('Store modifications',function(assert){
 		  	)
 		  	dones[5]()
 		})
+
+  /*  emitterImpl.once('Mike2.updated',function(){  
+  	 */
+   	expects.push(function(res){
+    	//console.log('finish: addProject_use')  	
+	  	assert.deepEqual(
+	  		mikeStore.getState(),
+	  		$.extend(
+	  		{
+	  			_stateVersion: 4,
+	  			name: 'mike',
+		        info: {
+		            age: 27,
+		            month: 'january',
+		            address: {
+		                city: 'Varna',
+		                street: 'slivnica',
+		                number: 1
+		            }
+		        },
+		        projects: [
+		            {   
+		                name: 'DataFlow',
+		                lang: ['php','js']
+		            },
+		            {
+		                name: 'Poll',
+		                lang: ['cake', 'php', 'js']
+		            },
+		            {   
+			            name: 'TransFlux',
+			            lang: ['js']
+			        },
+			        {
+			        	name: 'SuperCoolProj',
+            			lang: ['brainfuck']
+			        },
+			        {
+			        	name: 'SinglePageApp',
+            			lang: ['javascript']
+				    },
+				    {
+			        	name: 'Nacepin',
+            			lang: ['none']
+			        }	
+		        ]		       
+		    },init.obj_map_1),
+		    'addProject with "use"'
+	  	)
+	  	dones[3]()
+	})
+
+	
+
+	
+
+	//test 5+
+
+	//wait last to end to start new test
+	
+	
+	   
 
 
 
@@ -574,7 +576,7 @@ QUnit.test('Store modifications',function(assert){
 
 	//})	
 	
-	emitterImpl.on('Mike2.updated',function(res){ 
+	emitterImpl.on('Mike2.done',function(res){ 
     	//console.log('finish: addProject with get set - multi params pass - chained - ',res); 
     	var current_in = passed;
     	passed++;
@@ -594,13 +596,16 @@ QUnit.test('Store modifications',function(assert){
             lang: ['js']
     })
 
-	//debugger;
+	
 	emitterImpl.emit('Mike2.addProject_get_set',{   
             name: 'SuperCoolProj',
             lang: ['brainfuck']
     })
 
-	//debugger;
+    //debugger;
+	emitterImpl.emit('Mike2.addProject_multi_params','SinglePageApp',['javascript'])
+
+	
 	setTimeout(function(){
 		emitterImpl.emit('Mike2.addProject_use',{   
 	            name: 'Nacepin',
@@ -611,13 +616,12 @@ QUnit.test('Store modifications',function(assert){
 	
     assert.equal(
     	mikeStore.getState()._stateVersion,
-    	2,
+    	3,
     	'an action was called but the last Stable state must be with old data/version'
     )
     dones[4]();
 
-	//debugger;
-	emitterImpl.emit('Mike2.addProject_multi_params','SinglePageApp',['javascript'])
+	
 
 
 });

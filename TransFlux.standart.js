@@ -76,37 +76,52 @@
         return _tryEnQ;
     }
 
+    function reverseForIn(obj, f) {
+        var arr = [];
+        for (var key in obj) {
+            // add hasOwnPropertyCheck if needed
+            arr.push(key);
+        }
+        for (var i=arr.length-1; i>=0; i--) {
+            f.call(obj, arr[i]);
+        }
+    }
+
     // CLASSES
 
-    var TransactStore = function(store_prefix, model_data, funcs, origin_event) {
-        for(var i in funcs){
-            this[i] = funcs[i]; 
+    var TransactStore = function(store_prefix, splitModel) {
+
+        for(var i in splitModel.funcs){
+            this[i] = splitModel.funcs[i]; 
         }
+
+        splitModel.data._stateVersion = 0;
+
+        var _publicStateData = splitModel.data
+        var _transactStateData = deepCopyImpl(splitModel.data)
 
         var _changes = {};
 
         this.get = function(key_path){
-            return ObjectHelper.getNested(model_data,key_path);
+            return ObjectHelper.getNested(_transactStateData,key_path);
         }
 
-        this.set = function(key_path, value){       
-            //if(this.get(key_path)!==value){ // ref objects will be the same as new value, so always update            
-                if(ObjectHelper.checkNested(model_data,key_path)){
-                    if(ObjectHelper.setNested(model_data,key_path,value)){
-                        _changes[key_path] = value
-                    }else{
-                        console.warn('TransFlux', 'Failed to set a value to key path',[key_path, value])
-                    }
+        this.set = function(key_path, value){
+            if(ObjectHelper.checkNested(_transactStateData,key_path)){
+                if(ObjectHelper.setNested(_transactStateData,key_path,value)){
+                    _changes[key_path] = value
                 }else{
-                    console.warn('TransFlux', 'Someone try to set a value to not existing key path!',[key_path, value])
-                }           
-            //}
+                    console.warn('TransFlux', 'Failed to set a value to key path',[key_path, value])
+                }
+            }else{
+                console.warn('TransFlux', 'Someone try to set a value to not existing key path!',[key_path, value])
+            }     
         },
 
         //experimental (not tested)
         this.setChanged = function(key_path){
-            if(ObjectHelper.checkNested(model_data,key_path)){
-                var updated_obj = ObjectHelper.getNested(model_data,key_path);
+            if(ObjectHelper.checkNested(_transactStateData,key_path)){
+                var updated_obj = ObjectHelper.getNested(_transactStateData,key_path);
                 if(typeof updated_obj != 'object'){
                     console.warn('TransFlux', 'Use setChanged only for array or object, or use "set" insted!')
                 }
@@ -121,14 +136,75 @@
             this.set(key_path, func.apply(this,[this.get(key_path)]) )
         }
 
-        this.emitCommit = function(){
-            var emit_data = {changes: _changes, origin_event: origin_event};
-            emitterImpl.emit(store_prefix+_cfg.evSep+'commit', emit_data)
-            emitterImpl.emit(origin_event.full_name+_cfg.evSep+'commit', emit_data)
-            //self._changes = {};
+        this._run = function(func_name, args, origin_event){
+            var result = null;
+            //exec
+            try{
+                result = this[func_name].apply(this, args);
+            }catch(err){
+                result = ['TransFlux: Action exception in function "'+func_name+'"', err];
+                console.error(result);
+            } 
+            //dispatch
+            if(result===true){
+                _emitUpdated.apply(this,[origin_event]);
+            }else{
+                if(typeof result == 'undefined'){
+                    result = 'TransFlux: No return value from action function "'+func_name+'" - act as Rollback!'
+                    console.warn(result)
+                }
+                _emitRollbacked(result, origin_event);
+            }
+            //reset
+            _changes = {};
+        }
+
+        var _emitUpdated = function(origin_event){   
+            //increase version
+            this.set('_stateVersion', this.get('_stateVersion')+1);
+            //set changes to publicState
+            for(var key_path in _changes){
+                if(typeof _changes[key_path] == 'object'){
+                    ObjectHelper.setNested( _publicStateData, key_path, deepCopyImpl(_changes[key_path]) ) 
+                }else{
+                    ObjectHelper.setNested( _publicStateData, key_path, _changes[key_path] )
+                }                           
+            }
+            //notify others for finished update (for unlock and enqueue)
+            var emit_data = {
+                state: _publicStateData, 
+                changes: _changes, 
+                status:'updated', 
+                origin_event: origin_event
+            }; 
+            emitterImpl.emitToMany([                
+                store_prefix+_cfg.evSep+'done',
+                store_prefix+_cfg.evSep+'updated',
+                origin_event.full_name+_cfg.evSep+'done',
+                origin_event.full_name+_cfg.evSep+'updated',
+                store_prefix+_cfg.evSep+'_readyForNext',
+            ],emit_data)            
         }       
-        this.emitRollback = function(reason){
-            var emit_data = {/*changes: _changes,*/ reason: reason, origin_event: origin_event, status:'rollbacked'}
+
+        var _emitRollbacked = function(reason, origin_event){            
+            //revert changes from publicState
+            reverseForIn(_changes, function(key_path){
+                var original_val = ObjectHelper.getNested( _publicStateData, key_path);
+                if(typeof original_val == 'object'){
+                    ObjectHelper.setNested( _transactStateData, key_path, deepCopyImpl(original_val) )
+                }else{
+                    ObjectHelper.setNested( _transactStateData, key_path, original_val )
+                }
+            })
+            
+            //notify others for finished (for unlock and enqueue)
+            var emit_data = {
+                state: _publicStateData, 
+                changes: {}, 
+                status:'rollbacked', 
+                origin_event: origin_event,
+                reason: reason
+            };            
             emitterImpl.emitToMany([
                 store_prefix+_cfg.evSep+'done',
                 store_prefix+_cfg.evSep+'rollbacked',
@@ -136,104 +212,23 @@
                 origin_event.full_name+_cfg.evSep+'rollbacked',
                 store_prefix+_cfg.evSep+'_readyForNext',
             ],emit_data)
-            //self._changes = {};
-        }   
+        }
+
+        this.getPublicState = function(){
+            return _publicStateData;
+        }        
     }
 
-
-    var StateManager = function(store_prefix, onlyData){
-        var _data = deepCopyImpl(onlyData);
-        _data._stateVersion = -1; 
-
-        var _getLastVersionNum = function(){
-            return _data._stateVersion;
-        }
-
-        //readonly last state export 
-        var _lastStableState = null;
-        var _lastStableState_readOnly = null;
-        
-
-        var _getReadOnlyState = function(){
-            return _lastStableState_readOnly;
-        }
-
-        var _getLastStableState = function(){
-            return deepCopyImpl(_lastStableState); // copy the snapshot to prevent edit local var (multi call same var)
-            //return _lastStableState;
-        }
-        var _makeState = function(){
-            _data._stateVersion++;
-            _lastStableState = deepCopyImpl(_data); //snapshot of current data
-            _lastStableState_readOnly = ObjectHelper.deepFreeze(deepCopyImpl(_data));
-        }
-
-        var _commitQueue = [];
-       
-        emitterImpl.on(store_prefix+_cfg.evSep+'commit',function(data){
-            _commitQueue.push({
-                data: data,
-                event: {
-                    name: store_prefix+_cfg.evSep+'commit',
-                    store_prefix: store_prefix
-                }
-            })
-            _tryEnqueue();
-        })
-
-        var _tryEnqueue = _tryEnqueueShell(function(){
-            for(var j=0; j<_commitQueue.length; j++){
-                _onCommit(_commitQueue[j].data);  
-                //enqueue
-                _commitQueue.splice(j, 1);
-                j--; //fix to get correct next
-            }
-        })
-
-        function _onCommit(data){
-            //set changes to this
-            for(var key_path in data.changes){
-                ObjectHelper.setNested(_data, key_path, data.changes[key_path])//is it enought or it is a ref?                             
-            }
-            //remake states
-            _makeState();
-            //notify others for finished update (for unlock and enqueue)
-            var emit_data = {
-                state: _getReadOnlyState(), 
-                changes: data.changes, 
-                status:'updated', 
-                origin_event: data.origin_event
-            }; 
-            emitterImpl.emitToMany([
-                //store_prefix+'_readyForNext',
-                store_prefix+_cfg.evSep+'done',
-                store_prefix+_cfg.evSep+'updated',
-                data.origin_event.full_name+_cfg.evSep+'done',
-                data.origin_event.full_name+_cfg.evSep+'updated',
-                store_prefix+_cfg.evSep+'_readyForNext',
-            ],emit_data)
-        }
-
-        //init load
-        _makeState()
-
-        return {
-            getReadOnlyState : _getReadOnlyState,
-            getLastStableState : _getLastStableState,
-            getLastVersionNum: _getLastVersionNum,
-
-        }
-    }
 
     var createStore = function(store_prefix, data_object){
         var _execQueue = [];          
 
-        var _splitData = extractFuncAndData(data_object);
+        var _splitModel = extractFuncAndData(data_object);
 
-        var _stateMngr = StateManager(store_prefix, _splitData.data);
+        var _transactStore = new TransactStore(store_prefix, _splitModel);
 
         function _getActionData(event_name){
-            var found_func_data = _splitData.data.actionsMap[event_name];
+            var found_func_data = _splitModel.data.actionsMap[event_name];
             if(typeof found_func_data == 'string'){
                 found_func_data = {func: found_func_data}
             }
@@ -267,28 +262,12 @@
                 _execQueue.splice(j, 1);
                 j--; //fix to get correct next
 
-                 _synchExec(job);
+                emitterImpl.emit(job.event.full_name+_cfg.evSep+'started', job);
+                _transactStore._run(job.event.func_data.func, job.args, job.event);
                 //check for next waiting                
             }
-        })
-
-        function _synchExec(job){
-            //_running = job;
-            emitterImpl.emit(job.event.full_name+_cfg.evSep+'started', job);
-            _execTransact(job);
-        }
-              
-        function _execTransact(job){
-            //begin new trnsaction
-            //make an instance with last stable data and all functions       
-            var transactState = new TransactStore(store_prefix, _stateMngr.getLastStableState(), _splitData.funcs, job.event);
-            try{
-                transactState[job.event.func_data.func].apply(transactState, job.args);
-            }catch(err){
-                console.error('TransFlux','Action exception in function "'+job.event.func_data.func+'"',err);
-                transactState.emitRollback(err);
-            } 
-        }
+        })              
+        
 
         function _enqueue(emit_data){ 
             _tryEnqueue();
@@ -298,10 +277,10 @@
         emitterImpl.on(store_prefix+_cfg.evSep+'_readyForNext', _enqueue);
 
         //subscribe store actions (wait for transaction trigger)
-        if(_splitData.data.hasOwnProperty('actionsMap')){
-            for(var event_name in _splitData.data.actionsMap){
+        if(_splitModel.data.hasOwnProperty('actionsMap')){
+            for(var event_name in _splitModel.data.actionsMap){
                 var func_data = _getActionData(event_name);
-                if(_splitData.funcs.hasOwnProperty(func_data.func)){
+                if(_splitModel.funcs.hasOwnProperty(func_data.func)){
                     _mapOn(event_name, func_data);
                 }else{
                     console.warn('TransFlux', 'Action method "'+func_data.func+'" not found for store "'+store_prefix+'"')
@@ -312,8 +291,7 @@
         } 
 
         return {
-            getState: _stateMngr.getReadOnlyState,
-            getLastVersionNum: _stateMngr.getLastVersionNum,
+            getState: _transactStore.getPublicState,          
             emitter: emitterImpl,
             prefix: store_prefix,
             options: _cfg,

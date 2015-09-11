@@ -19,7 +19,15 @@
   <script src="../utils/jquery-1.11.3.min.js"></script>
   <script>
   	var deepCopyImpl = function(origin_obj){
-  		return $.extend(true,{},origin_obj) 
+      if(typeof origin_obj == 'object'){
+        if(Array.isArray(origin_obj)){
+    		  return $.extend(true,[],origin_obj) 
+        }else{
+          return $.extend(true,{},origin_obj)
+        }
+      }else{
+        return origin_obj;
+      }
   	}
   </script>
 
