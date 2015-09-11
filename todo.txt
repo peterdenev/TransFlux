@@ -15,6 +15,14 @@ Future:
 - real example
 - getState to accept what to export
 - ractive helper to update specific fields from state
+- fork with clear flux strategy:
+	- one store class with two data sets (publicStateData, transStateData[])
+	- no deep copy (except first extraction)
+	- no (feep) freeze (in case when lib users do not change state directly!)
+	- no "new" transact objects each time
+	- [no path locking - all will be in one queue and will be one by one]
+	- (async in extreanal action)
+	- (onMultiCall in external action)
 
 
 README:
