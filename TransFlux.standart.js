@@ -334,7 +334,7 @@
     }
 
     function createActions(storeInst, mapping){
-        var actionsArr = [];
+        var actionsArr = {};
         for(var action in mapping){
             var aMap = mapping[action];
             if(typeof aMap != 'function'){
@@ -342,6 +342,8 @@
                     aMap = [aMap]
                 } 
                 actionsArr[action] = createAction.apply(createAction, [storeInst].concat(aMap))
+            }else{
+                actionsArr[action] = {exec: aMap.bind(actionsArr)};
             }
         }
         return actionsArr;

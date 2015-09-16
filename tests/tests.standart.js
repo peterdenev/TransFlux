@@ -51,7 +51,7 @@ function startUp(){
         	var projs = this.get('projects');
         	projs.push(proj);
         	this.set('projects',projs);
-        	return false; 
+        	return 'Expected Rollback'; 
         },
         addProjectMultiParams: function(name, langs){        	
         	var proj = {
